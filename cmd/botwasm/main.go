@@ -71,19 +71,14 @@ func makeBot() bot.Bot {
 	return bot.Make(botSpec, botSeed, botSims, botRollout)
 }
 
-// snapshotJSON returns the client view. The bot's hand is masked so the player
-// cannot see it, and the payload names the human and bot factions.
+// snapshotJSON returns the client view. Redaction (hiding the engine's hand,
+// supporters, and any hidden draws/deals in the log and RMN) is the engine's
+// shared policy, so the demo hides exactly what a real opponent would.
 func snapshotJSON() string {
 	if current == nil {
 		return "{}"
 	}
-	cp := current.Clone()
-	if p := cp.Players[botFaction]; p != nil {
-		for i := range p.Hand {
-			p.Hand[i] = "??"
-		}
-	}
-	snap := root.Snapshot(cp)
+	snap := root.Redact(current, string(humanFaction))
 	snap["you"] = string(humanFaction)
 	snap["bot"] = string(botFaction)
 	snap["humanActor"] = string(humanFaction) == string(current.Actor())
@@ -144,27 +139,6 @@ func main() {
 			return fmt.Sprintf("%s/%d", botSpec, botSims)
 		}),
 		"snapshot": js.FuncOf(func(this js.Value, args []js.Value) any {
-			return snapshotJSON()
-		}),
-		"save": js.FuncOf(func(this js.Value, args []js.Value) any {
-			if current == nil {
-				return ""
-			}
-			b, err := json.Marshal(current)
-			if err != nil {
-				return ""
-			}
-			return string(b)
-		}),
-		"load": js.FuncOf(func(this js.Value, args []js.Value) any {
-			if len(args) < 1 {
-				return withError("no state")
-			}
-			g := &root.Game{}
-			if err := json.Unmarshal([]byte(args[0].String()), g); err != nil {
-				return withError(err.Error())
-			}
-			current = g
 			return snapshotJSON()
 		}),
 	}
