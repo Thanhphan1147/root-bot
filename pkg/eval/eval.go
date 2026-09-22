@@ -271,6 +271,28 @@ var Profiles = []Heuristic{
 			EDRisk: 4.0, EDThin: 0.3,
 		},
 	},
+	{
+		// Marquise profiles: value the wood/build engine increasingly.
+		Label: "mc1",
+		W: Weights{
+			VP: 1, Warrior: 0.1, Building: 0.5, Token: 0.3, Rule: 0.4, Card: 0.2,
+			MCWood: 0.15, MCBuild: 0.8, KeepBonus: 1.5,
+		},
+	},
+	{
+		Label: "mc2",
+		W: Weights{
+			VP: 1, Warrior: 0.15, Building: 0.6, Token: 0.3, Rule: 0.5, Card: 0.25,
+			MCWood: 0.2, MCBuild: 1.0, KeepBonus: 2.0,
+		},
+	},
+	{
+		Label: "mc3",
+		W: Weights{
+			VP: 1, Warrior: 0.2, Building: 0.7, Token: 0.3, Rule: 0.5, Card: 0.3,
+			MCWood: 0.25, MCBuild: 1.2, KeepBonus: 2.5,
+		},
+	},
 }
 
 // ProfileByName returns a profile by label.

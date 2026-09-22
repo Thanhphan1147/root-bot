@@ -444,11 +444,14 @@ let game = null;
 let viewer = "";
 let thinking = false;
 
+// The engine plays whichever faction you do not, so each side gets its own
+// profile (the Eyrie profile is tuned for the Decree, which the Marquise lacks).
 const STRENGTH = {
-  fast: ["greedy:material", 0],
-  strong: ["greedy:eyrie", 0],
-  max: ["mcts:eyrie", 400],
+  fast: { MC: "greedy:material", ED: "greedy:material" },
+  strong: { MC: "greedy:material", ED: "greedy:eyrie" },
+  max: { MC: "mcts:material", ED: "mcts:eyrie" },
 };
+const SIMS = { fast: 0, strong: 0, max: 400 };
 
 function doAction(id) {
   if (thinking) return;
@@ -456,10 +459,12 @@ function doAction(id) {
 }
 
 function newGame() {
-  const side = document.getElementById("side").value;
-  const pick = STRENGTH[document.getElementById("strength").value] || STRENGTH.strong;
-  if (window.RootBot) RootBot.setBot(pick[0], pick[1]);
-  wasmCall("newGame", [side, Math.floor(Math.random() * 1e9), 0]);
+  const human = document.getElementById("side").value;
+  const botSide = human === "MC" ? "ED" : "MC";
+  const level = document.getElementById("strength").value;
+  const spec = (STRENGTH[level] || STRENGTH.strong)[botSide];
+  if (window.RootBot) RootBot.setBot(spec, SIMS[level] || 0);
+  wasmCall("newGame", [human, Math.floor(Math.random() * 1e9), 0]);
 }
 
 // wasmCall yields a frame so the spinner paints before the blocking WASM call.
