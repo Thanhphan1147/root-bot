@@ -4,7 +4,7 @@ package arena
 import (
 	"math/rand"
 
-	"github.com/Thanhphan1147/root-bot/internal/bot"
+	"github.com/Thanhphan1147/root-bot/pkg/bot"
 	"github.com/Thanhphan1147/root-mn/pkg/root"
 )
 

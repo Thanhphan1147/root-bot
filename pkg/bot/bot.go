@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/Thanhphan1147/root-bot/internal/eval"
-	"github.com/Thanhphan1147/root-bot/internal/search"
+	"github.com/Thanhphan1147/root-bot/pkg/eval"
+	"github.com/Thanhphan1147/root-bot/pkg/search"
 	"github.com/Thanhphan1147/root-mn/pkg/root"
 )
 

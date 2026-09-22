@@ -6,7 +6,7 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/Thanhphan1147/root-bot/internal/eval"
+	"github.com/Thanhphan1147/root-bot/pkg/eval"
 	"github.com/Thanhphan1147/root-mn/pkg/root"
 )
 
