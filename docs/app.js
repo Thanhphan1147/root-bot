@@ -445,9 +445,9 @@ let viewer = "";
 let thinking = false;
 
 const STRENGTH = {
-  fast: ["greedy:full", 0],
-  strong: ["mcts:full", 200],
-  max: ["mcts:full", 600],
+  fast: ["greedy:material", 0],
+  strong: ["greedy:tuned", 0],
+  max: ["mcts:tuned", 400],
 };
 
 function doAction(id) {

@@ -46,21 +46,22 @@ func (m MCTS) Choose(g *root.Game, f root.Faction) root.Action {
 		m.simulate(rootNode, f)
 	}
 
-	best, bestVisits := 0, -1
+	best, bestVisits := -1, -1
 	for i, c := range rootNode.children {
 		if c.visits > bestVisits {
 			bestVisits, best = c.visits, i
 		}
 	}
-	if best >= len(rootNode.children) {
+	if best < 0 {
 		return rootNode.actions[0]
 	}
-	return rootNode.actions[best]
+	return rootNode.children[best].action
 }
 
 type mnode struct {
 	state    *root.Game
 	player   root.Faction
+	action   root.Action // the action that produced this node
 	actions  []root.Action
 	children []*mnode
 	visits   int
@@ -82,7 +83,7 @@ func (m MCTS) simulate(rootNode *mnode, rootPlayer root.Faction) {
 			if err := child.Apply(a); err != nil {
 				continue
 			}
-			cn := &mnode{state: child, player: child.Actor(), actions: child.LegalActions()}
+			cn := &mnode{state: child, player: child.Actor(), actions: child.LegalActions(), action: a}
 			n.children = append(n.children, cn)
 			n = cn
 			path = append(path, n)

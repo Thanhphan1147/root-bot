@@ -25,7 +25,7 @@ func main() {
 	rng := rand.New(rand.NewSource(1))
 
 	mcWins, edWins, draws := 0, 0, 0
-	sumMC, sumED := 0, 0
+	sumMC, sumED, sumTurmoil := 0, 0, 0
 	for i := 0; i < *games; i++ {
 		g := root.NewGame([]root.Faction{root.MC, root.ED}, root.MC, rng.Uint64())
 		root.BeginSetup(g)
@@ -52,6 +52,13 @@ func main() {
 		mc, ed := g.Players[root.MC], g.Players[root.ED]
 		sumMC += mc.VP
 		sumED += ed.VP
+		turmoils := 0
+		for _, e := range g.Log {
+			if e.Kind == "turmoil" {
+				turmoils++
+			}
+		}
+		sumTurmoil += turmoils
 		switch {
 		case len(g.Winner) == 0:
 			draws++
@@ -62,14 +69,14 @@ func main() {
 		default:
 			draws++
 		}
-		fmt.Printf("g%02d r=%-3d MC vp=%-3d items=%-2d build=%d/%d/%d wood=%-2d | ED vp=%-3d roosts=%d win=%v\n",
+		fmt.Printf("g%02d r=%-3d MC vp=%-3d items=%-2d build=%d/%d/%d wood=%-2d | ED vp=%-3d roosts=%d turmoil=%d win=%v\n",
 			i, g.Round, mc.VP, len(mc.CraftedItems),
 			cb(g, root.MC, "sawmill"), cb(g, root.MC, "workshop"), cb(g, root.MC, "recruiter"), wood(g),
-			ed.VP, cb(g, root.ED, "roost"), g.Winner)
+			ed.VP, cb(g, root.ED, "roost"), turmoils, g.Winner)
 	}
-	fmt.Printf("\nMC(%s) wins %d | ED(%s) wins %d | draws %d | avg MC vp %.1f, ED vp %.1f\n",
+	fmt.Printf("\nMC(%s) wins %d | ED(%s) wins %d | draws %d | avg MC vp %.1f, ED vp %.1f, ED turmoils %.1f\n",
 		mcBot.Name(), mcWins, edBot.Name(), edWins, draws,
-		float64(sumMC)/float64(*games), float64(sumED)/float64(*games))
+		float64(sumMC)/float64(*games), float64(sumED)/float64(*games), float64(sumTurmoil)/float64(*games))
 }
 
 func cb(g *root.Game, f root.Faction, typ string) int {

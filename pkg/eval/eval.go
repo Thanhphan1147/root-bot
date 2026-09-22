@@ -28,6 +28,7 @@ type Weights struct {
 	EDDecree  float64 // decree cards queued
 	EDLeader  float64 // a leader is seated (avoids early turmoil)
 	KeepBonus float64 // Marquise keep still on the board
+	EDRisk    float64 // per decree card that cannot currently be resolved
 }
 
 // Heuristic is a weighted evaluator.
@@ -90,6 +91,7 @@ func factionValue(g *root.Game, f root.Faction, w Weights) float64 {
 		if p.Leader != "" {
 			v += w.EDLeader
 		}
+		v -= w.EDRisk * edDecreeRisk(g)
 	}
 	return v
 }
@@ -187,6 +189,7 @@ var Profiles = []Heuristic{
 		W: Weights{
 			VP: 1, Warrior: 0.15, Building: 0.4, Token: 0.4, Rule: 0.25, Card: 0.2,
 			MCWood: 0.08, MCBuild: 0.5, EDRoost: 0.6, EDDecree: 0.1, EDLeader: 0.5, KeepBonus: 1.0,
+			EDRisk: 2.0,
 		},
 	},
 	{
@@ -194,6 +197,7 @@ var Profiles = []Heuristic{
 		W: Weights{
 			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
 			MCWood: 0.05, MCBuild: 0.45, EDRoost: 0.7, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 3.0,
 		},
 	},
 }
@@ -206,4 +210,94 @@ func ProfileByName(name string) (Heuristic, bool) {
 		}
 	}
 	return Heuristic{}, false
+}
+
+// --- Eyrie decree safety ---
+
+// edDecreeRisk counts Decree cards that cannot currently be resolved, which
+// would force the Eyrie into Turmoil.
+func edDecreeRisk(g *root.Game) float64 {
+	p := g.Players[root.ED]
+	if p == nil {
+		return 0
+	}
+	risk := 0.0
+	for col, cards := range p.Decree {
+		for _, id := range cards {
+			if !decreeCardResolvable(g, col, decreeSuit(id)) {
+				risk++
+			}
+		}
+	}
+	return risk
+}
+
+func decreeSuit(id string) root.Suit {
+	if id == "VIZIER" {
+		return root.Bird
+	}
+	if c, ok := root.Card(id); ok {
+		return c.Suit
+	}
+	return ""
+}
+
+func suitMatches(have, want root.Suit) bool {
+	return have == want || have == root.Bird || want == root.Bird
+}
+
+// decreeCardResolvable approximates whether a Decree card of a given column and
+// suit has a legal target on the current board.
+func decreeCardResolvable(g *root.Game, col string, suit root.Suit) bool {
+	switch col {
+	case "RECRUIT":
+		for cid, c := range g.Clearings {
+			if hasRoost(g, cid) && suitMatches(c.Suit, suit) {
+				return true
+			}
+		}
+	case "MOVE":
+		for _, c := range g.Clearings {
+			if suitMatches(c.Suit, suit) && c.Warriors[root.ED] > 0 && len(c.Adj) > 0 {
+				return true
+			}
+		}
+	case "BATTLE":
+		for _, c := range g.Clearings {
+			if !suitMatches(c.Suit, suit) || c.Warriors[root.ED] == 0 {
+				continue
+			}
+			for f, n := range c.Warriors {
+				if f != root.ED && n > 0 {
+					return true
+				}
+			}
+			for _, b := range c.Buildings {
+				if b.Owner != root.ED {
+					return true
+				}
+			}
+			for _, t := range c.Tokens {
+				if t.Owner != root.ED {
+					return true
+				}
+			}
+		}
+	case "BUILD":
+		for cid, c := range g.Clearings {
+			if suitMatches(c.Suit, suit) && g.Rules(root.ED, cid) && !hasRoost(g, cid) && c.FreeSlots() > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasRoost(g *root.Game, c string) bool {
+	for _, b := range g.Clearings[c].Buildings {
+		if b.Owner == root.ED && b.Type == "roost" {
+			return true
+		}
+	}
+	return false
 }
