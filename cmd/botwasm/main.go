@@ -1,0 +1,173 @@
+//go:build js && wasm
+
+// Command botwasm exposes a 1v1 ROOT game against the engine to the browser as
+// WebAssembly. The game state lives in the browser, so the demo needs no server
+// and can be hosted as a static site (GitHub Pages).
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"syscall/js"
+
+	"github.com/Thanhphan1147/root-bot/pkg/bot"
+	"github.com/Thanhphan1147/root-mn/pkg/root"
+)
+
+var (
+	current      *root.Game
+	humanFaction       = root.MC
+	botFaction         = root.ED
+	botSpec            = "mcts:full"
+	botSims            = 200
+	botRollout         = 0
+	botSeed      int64 = 1
+)
+
+func newGame(human string, seed, sims int) {
+	h := root.Faction(human)
+	if h != root.MC && h != root.ED {
+		h = root.MC
+	}
+	b := root.ED
+	if h == root.ED {
+		b = root.MC
+	}
+	humanFaction, botFaction = h, b
+	if sims > 0 {
+		botSims = sims
+	}
+	current = root.NewGame([]root.Faction{root.MC, root.ED}, root.MC, uint64(seed))
+	root.BeginSetup(current)
+	botSeed = int64(seed) + 1
+	runBots()
+}
+
+// runBots plays consecutive bot turns until the human must act or the game ends.
+func runBots() {
+	if current == nil {
+		return
+	}
+	for i := 0; i < 500; i++ {
+		if len(current.Winner) > 0 || current.Actor() != botFaction {
+			break
+		}
+		if len(current.LegalActions()) == 0 {
+			break
+		}
+		b := makeBot()
+		mv := b.Choose(current, botFaction)
+		if mv.ID == "" {
+			break
+		}
+		if err := current.Apply(mv); err != nil {
+			break
+		}
+	}
+}
+
+func makeBot() bot.Bot {
+	defer func() { recover() }()
+	return bot.Make(botSpec, botSeed, botSims, botRollout)
+}
+
+// snapshotJSON returns the client view. The bot's hand is masked so the player
+// cannot see it, and the payload names the human and bot factions.
+func snapshotJSON() string {
+	if current == nil {
+		return "{}"
+	}
+	cp := current.Clone()
+	if p := cp.Players[botFaction]; p != nil {
+		for i := range p.Hand {
+			p.Hand[i] = "??"
+		}
+	}
+	snap := root.Snapshot(cp)
+	snap["you"] = string(humanFaction)
+	snap["bot"] = string(botFaction)
+	snap["humanActor"] = string(humanFaction) == string(current.Actor())
+	b, err := json.Marshal(snap)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
+func withError(msg string) string {
+	b, _ := json.Marshal(map[string]any{"error": msg})
+	return string(b)
+}
+
+func main() {
+	api := map[string]any{
+		"newGame": js.FuncOf(func(this js.Value, args []js.Value) any {
+			human := "MC"
+			seed, sims := 1, 0
+			if len(args) > 0 {
+				human = args[0].String()
+			}
+			if len(args) > 1 {
+				seed = args[1].Int()
+			}
+			if len(args) > 2 {
+				sims = args[2].Int()
+			}
+			newGame(human, seed, sims)
+			return snapshotJSON()
+		}),
+		"apply": js.FuncOf(func(this js.Value, args []js.Value) any {
+			if current == nil || len(args) < 1 {
+				return withError("no game")
+			}
+			id := args[0].String()
+			if err := current.Apply(root.Action{ID: id}); err != nil {
+				out := map[string]any{"error": err.Error()}
+				var snap map[string]any
+				_ = json.Unmarshal([]byte(snapshotJSON()), &snap)
+				for k, v := range snap {
+					out[k] = v
+				}
+				b, _ := json.Marshal(out)
+				return string(b)
+			}
+			runBots()
+			return snapshotJSON()
+		}),
+		"setBot": js.FuncOf(func(this js.Value, args []js.Value) any {
+			if len(args) > 0 {
+				botSpec = args[0].String()
+			}
+			if len(args) > 1 {
+				botSims = args[1].Int()
+			}
+			return fmt.Sprintf("%s/%d", botSpec, botSims)
+		}),
+		"snapshot": js.FuncOf(func(this js.Value, args []js.Value) any {
+			return snapshotJSON()
+		}),
+		"save": js.FuncOf(func(this js.Value, args []js.Value) any {
+			if current == nil {
+				return ""
+			}
+			b, err := json.Marshal(current)
+			if err != nil {
+				return ""
+			}
+			return string(b)
+		}),
+		"load": js.FuncOf(func(this js.Value, args []js.Value) any {
+			if len(args) < 1 {
+				return withError("no state")
+			}
+			g := &root.Game{}
+			if err := json.Unmarshal([]byte(args[0].String()), g); err != nil {
+				return withError(err.Error())
+			}
+			current = g
+			return snapshotJSON()
+		}),
+	}
+	js.Global().Set("RootBot", js.ValueOf(api))
+	select {}
+}

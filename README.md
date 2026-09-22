@@ -4,10 +4,10 @@ Bots for 1v1 ROOT, built on the [Root Machine Notation](https://github.com/Thanh
 engine. Goal: let a lone player face a bot in the multiplayer client, starting
 with **Eyrie vs Marquise**.
 
-> Status: early. The framework, evaluation heuristics, search, and a self-play
-> harness are in place. A baseline measurement turned up a serious balance
-> problem in the 1v1 matchup (below) that must be resolved before the bot is
-> worth playing against.
+> Status: playable. The framework, evaluation heuristics, search, a self-play
+> harness, a serverless browser demo, and server-side bot seats in
+> [root-multiplayer](https://github.com/Thanhphan1147/root-multiplayer) are in
+> place. A 1v1 balance problem (below) still limits how good the games are.
 
 ## Architecture decision: one engine, per-faction evaluation
 
@@ -49,6 +49,20 @@ So a "faction engine" here is a **profile**: a set of evaluation weights plus
     go run ./cmd/selfplay -a mcts:full -b greedy:full -games 20 -sims 200
     go run ./cmd/diag -mc greedy:full -ed random -games 10
 
+## Play in your browser
+
+A serverless demo compiles the engine and bot to WebAssembly and runs entirely in
+the page — no server:
+
+**https://thanhphan1147.github.io/root-bot/**
+
+Pick a side (Marquise or Eyrie) and an engine strength, then play 1v1. The bundle
+is built with `bash scripts/build-web.sh` (or `make web`) into `docs/`, which
+GitHub Pages serves; `cmd/botwasm` is the WASM entry point.
+
+The same bot also plays seats on the multiplayer server (`rmn-mp add-bot ...`),
+so a lone player in a room has an opponent.
+
 ## Engine work done for the bot
 
 - `root.Game.Clone` was a JSON round trip (~440 us/op). It is now a manual deep
@@ -79,6 +93,7 @@ roosts, which score every Evening.
 1. Resolve the MC/ED imbalance (audit the Eyrie decree/turmoil economy and MC's
    action economy; add a roost-pressure term; verify against the real rules).
 2. Fair search: current MCTS sees the true state. Move to determinised MCTS
-   (sample the opponent's hand and deck from the public information).
-3. Faster search: an apply path that skips re-validation and logging.
-4. Integrate a bot seat into root-multiplayer so a lone player can play it.
+   (sample the opponent's hand and deck from the public information) in both the
+   server bot and the browser demo.
+3. Faster search: an apply path that skips re-validation and logging, and run the
+   browser MCTS in a Web Worker so deep search does not block the page.

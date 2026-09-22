@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light" />
+<meta name="description" content="Play 1v1 ROOT against an engine, entirely in your browser." />
+<title>ROOT · 1v1 vs engine</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="bot.css" />
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand">
+      <h1>ROOT · 1v1 vs engine</h1>
+      <p class="sub">Marquise vs Eyrie · runs entirely in your browser</p>
+    </div>
+    <div class="header-controls">
+      <label>play
+        <select id="side">
+          <option value="MC">Marquise</option>
+          <option value="ED">Eyrie</option>
+        </select>
+      </label>
+      <label>engine
+        <select id="strength">
+          <option value="fast">fast</option>
+          <option value="strong" selected>strong</option>
+          <option value="max">max</option>
+        </select>
+      </label>
+      <button id="newgame" class="btn" type="button">New game</button>
+    </div>
+  </div>
+</header>
+
+<div class="turnbanner" id="turnbanner" hidden aria-live="polite"></div>
+<div class="thinking" id="thinking" hidden>engine is thinking…</div>
+
+<main class="bench">
+  <aside class="players" id="players" aria-label="Players"></aside>
+
+  <section class="boardwrap">
+    <div class="minimap" id="minimap" aria-label="Clearing graph" role="img"></div>
+    <div class="board" id="board" aria-label="Woodland map"></div>
+    <div class="boardfoot" id="boardfoot"></div>
+  </section>
+
+  <section class="rightcol">
+    <div class="panel">
+      <div class="panel-head"><h2 id="actionhead">Actions</h2><span class="hint" id="pendhint"></span></div>
+      <div class="actions" id="actions"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Log</h2><span class="hint">human-readable events</span></div>
+      <ol class="log" id="log"></ol>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Annotations</h2><span class="hint">Root Machine Notation</span></div>
+      <ol class="rmn" id="rmn"></ol>
+    </div>
+  </section>
+</main>
+
+<footer class="sitefoot">
+  <span>Unofficial fan project — not affiliated with Leder Games.</span>
+  <a href="https://github.com/Thanhphan1147/root-bot" target="_blank" rel="noopener">root-bot</a>
+</footer>
+
+<script src="wasm_exec.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
