@@ -262,13 +262,55 @@ var Profiles = []Heuristic{
 		},
 	},
 	{
-		// The tuned Eyrie profile: a strong board plus a mild Decree margin
-		// penalty, which keeps turmoils to 1-2 per game without giving up VP.
+		// Eyrie: rush roosts as the VP engine (they score and draw every
+		// Evening) while keeping the Decree resolvable. No defense weighting.
 		Label: "eyrie",
 		W: Weights{
-			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
-			MCWood: 0.05, MCBuild: 0.45, EDRoost: 1.0, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
-			EDRisk: 4.0, EDThin: 0.3,
+			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
+			EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
+		},
+	},
+	{
+		// Eyrie: build roosts as fast as possible for the VP engine.
+		Label: "ed-roost2",
+		W: Weights{
+			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
+			EDRoost: 2.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
+		},
+	},
+	{
+		Label: "ed-roost3",
+		W: Weights{
+			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
+			EDRoost: 3.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
+		},
+	},
+	{
+		Label: "ed-roost4",
+		W: Weights{
+			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
+			EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
+		},
+	},
+	{
+		Label: "ed-roost5",
+		W: Weights{
+			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
+			EDRoost: 5.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
+		},
+	},
+	{
+		Label: "ed-rule1",
+		W: Weights{
+			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 1.0, Card: 0.25,
+			EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
+		},
+	},
+	{
+		Label: "ed-rule2",
+		W: Weights{
+			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 1.4, Card: 0.25,
+			EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
 		},
 	},
 	{
