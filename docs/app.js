@@ -453,10 +453,49 @@ const STRENGTH = {
 };
 const SIMS = { fast: 0, strong: 0, max: 400 };
 
-function doAction(id) {
-  if (thinking) return;
-  wasmCall("apply", [id]);
+let chosenSide = "MC";
+let chosenLevel = "strong";
+
+function showStart() {
+  document.getElementById("start").hidden = false;
 }
+function hideStart() {
+  document.getElementById("start").hidden = true;
+}
+
+for (const b of document.querySelectorAll("#sidepick button")) {
+  b.onclick = () => {
+    chosenSide = b.dataset.side;
+    for (const x of document.querySelectorAll("#sidepick button")) x.classList.toggle("on", x === b);
+  };
+}
+for (const b of document.querySelectorAll("#strengthpick button")) {
+  b.onclick = () => {
+    chosenLevel = b.dataset.level;
+    for (const x of document.querySelectorAll("#strengthpick button")) x.classList.toggle("on", x === b);
+  };
+}
+document.getElementById("startgame").onclick = () => { hideStart(); newGame(chosenSide, chosenLevel); };
+document.getElementById("newgame").onclick = () => { if (!thinking) showStart(); };
+
+function newGame(human, level) {
+  const botSide = human === "MC" ? "ED" : "MC";
+  const spec = (STRENGTH[level] || STRENGTH.strong)[botSide];
+  if (window.RootBot) RootBot.setBot(spec, SIMS[level] || 0);
+  wasmCall("newGame", [human, Math.floor(Math.random() * 1e9), 0]);
+}
+
+// --- Players drawer (small viewports), matching the analysis page ---
+const playersToggle = document.getElementById("toggleplayers");
+const drawerBackdrop = document.getElementById("drawerbackdrop");
+function setDrawer(open) {
+  document.body.classList.toggle("players-open", open);
+  if (playersToggle) playersToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  if (drawerBackdrop) drawerBackdrop.hidden = !open;
+}
+if (playersToggle) playersToggle.onclick = () => setDrawer(!document.body.classList.contains("players-open"));
+if (drawerBackdrop) drawerBackdrop.onclick = () => setDrawer(false);
+window.addEventListener("keydown", (e) => { if (e.key === "Escape") setDrawer(false); });
 
 function newGame() {
   const human = document.getElementById("side").value;
@@ -526,8 +565,7 @@ async function boot() {
     document.getElementById("actions").innerHTML = '<div class="winner">The engine did not start.</div>';
     return;
   }
-  document.getElementById("newgame").onclick = newGame;
-  newGame();
+  showStart();
 }
 
 boot();

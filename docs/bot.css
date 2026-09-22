@@ -1,15 +1,5 @@
 /* Bot demo overrides on top of the shared analysis styling. */
 
-.header-controls select {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  padding: 0.28rem 0.35rem;
-  border: 1.5px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
-}
-
 .thinking {
   position: fixed;
   left: 50%;
@@ -25,6 +15,28 @@
   font-size: 0.7rem;
 }
 .thinking[hidden] { display: none; }
+
+/* Start dialog: side and engine pickers. */
+.sidepick, .strengthpick { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.sidepick button, .strengthpick button {
+  flex: 1 1 8rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.55rem 0.6rem;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+.sidepick button.MC { border-color: var(--mc); color: var(--mc); }
+.sidepick button.ED { border-color: var(--ed); color: var(--ed); }
+.strengthpick button { flex: 1 1 4rem; }
+.sidepick button.on, .strengthpick button.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
 
 /* The bot plays the Marquise or the Eyrie; mark the engine's chair. */
 .pcard .phead .f .engine-tag {
