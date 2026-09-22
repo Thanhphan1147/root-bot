@@ -446,8 +446,8 @@ let thinking = false;
 
 const STRENGTH = {
   fast: ["greedy:material", 0],
-  strong: ["greedy:tuned", 0],
-  max: ["mcts:tuned", 400],
+  strong: ["greedy:eyrie", 0],
+  max: ["mcts:eyrie", 400],
 };
 
 function doAction(id) {

@@ -28,7 +28,8 @@ type Weights struct {
 	EDDecree  float64 // decree cards queued
 	EDLeader  float64 // a leader is seated (avoids early turmoil)
 	KeepBonus float64 // Marquise keep still on the board
-	EDRisk    float64 // per decree card that cannot currently be resolved
+	EDRisk    float64 // per decree card with no legal target
+	EDThin    float64 // per-unit risk for decree cards with few legal targets
 }
 
 // Heuristic is a weighted evaluator.
@@ -92,6 +93,7 @@ func factionValue(g *root.Game, f root.Faction, w Weights) float64 {
 			v += w.EDLeader
 		}
 		v -= w.EDRisk * edDecreeRisk(g)
+		v -= w.EDThin * edDecreeThin(g)
 	}
 	return v
 }
@@ -200,6 +202,75 @@ var Profiles = []Heuristic{
 			EDRisk: 3.0,
 		},
 	},
+	{
+		// Lean Decree; small margin penalty.
+		Label: "ed-lean",
+		W: Weights{
+			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
+			MCWood: 0.05, MCBuild: 0.45, EDRoost: 0.8, EDDecree: -0.6, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 3.0,
+		},
+	},
+	{
+		Label: "thin1",
+		W: Weights{
+			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
+			MCWood: 0.05, MCBuild: 0.45, EDRoost: 0.7, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 3.0, EDThin: 0.5,
+		},
+	},
+	{
+		Label: "thin2",
+		W: Weights{
+			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
+			MCWood: 0.05, MCBuild: 0.45, EDRoost: 0.7, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 3.0, EDThin: 1.5,
+		},
+	},
+	{
+		Label: "thin3",
+		W: Weights{
+			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
+			MCWood: 0.05, MCBuild: 0.45, EDRoost: 0.7, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 3.0, EDThin: 3.0,
+		},
+	},
+	{
+		// Sustain the Decree with a wide roost network (roosts also score).
+		Label: "roost1",
+		W: Weights{
+			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
+			MCWood: 0.05, MCBuild: 0.45, EDRoost: 1.2, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 3.0, EDThin: 0.5,
+		},
+	},
+	{
+		Label: "roost2",
+		W: Weights{
+			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
+			MCWood: 0.05, MCBuild: 0.45, EDRoost: 1.6, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 3.0, EDThin: 0.5,
+		},
+	},
+	{
+		// A mild margin penalty with a strong board: the best balance found.
+		Label: "balanced",
+		W: Weights{
+			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
+			MCWood: 0.05, MCBuild: 0.45, EDRoost: 1.0, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 3.0, EDThin: 0.3,
+		},
+	},
+	{
+		// The tuned Eyrie profile: a strong board plus a mild Decree margin
+		// penalty, which keeps turmoils to 1-2 per game without giving up VP.
+		Label: "eyrie",
+		W: Weights{
+			VP: 1.0, Warrior: 0.12, Building: 0.35, Token: 0.35, Rule: 0.3, Card: 0.25,
+			MCWood: 0.05, MCBuild: 0.45, EDRoost: 1.0, EDDecree: 0.05, EDLeader: 0.6, KeepBonus: 1.2,
+			EDRisk: 4.0, EDThin: 0.3,
+		},
+	},
 }
 
 // ProfileByName returns a profile by label.
@@ -213,24 +284,6 @@ func ProfileByName(name string) (Heuristic, bool) {
 }
 
 // --- Eyrie decree safety ---
-
-// edDecreeRisk counts Decree cards that cannot currently be resolved, which
-// would force the Eyrie into Turmoil.
-func edDecreeRisk(g *root.Game) float64 {
-	p := g.Players[root.ED]
-	if p == nil {
-		return 0
-	}
-	risk := 0.0
-	for col, cards := range p.Decree {
-		for _, id := range cards {
-			if !decreeCardResolvable(g, col, decreeSuit(id)) {
-				risk++
-			}
-		}
-	}
-	return risk
-}
 
 func decreeSuit(id string) root.Suit {
 	if id == "VIZIER" {
@@ -246,48 +299,88 @@ func suitMatches(have, want root.Suit) bool {
 	return have == want || have == root.Bird || want == root.Bird
 }
 
-// decreeCardResolvable approximates whether a Decree card of a given column and
-// suit has a legal target on the current board.
-func decreeCardResolvable(g *root.Game, col string, suit root.Suit) bool {
+// edDecreeRisk counts Decree cards that currently have no legal target, which
+// would force the Eyrie into Turmoil.
+func edDecreeRisk(g *root.Game) float64 {
+	p := g.Players[root.ED]
+	if p == nil {
+		return 0
+	}
+	risk := 0.0
+	for col, cards := range p.Decree {
+		for _, id := range cards {
+			if decreeCardTargets(g, col, decreeSuit(id)) == 0 {
+				risk++
+			}
+		}
+	}
+	return risk
+}
+
+// edDecreeThin adds a gentler risk for cards that still have targets but few of
+// them, so the bot keeps a margin instead of running a column to the brink.
+func edDecreeThin(g *root.Game) float64 {
+	p := g.Players[root.ED]
+	if p == nil {
+		return 0
+	}
+	thin := 0.0
+	for col, cards := range p.Decree {
+		for _, id := range cards {
+			if n := decreeCardTargets(g, col, decreeSuit(id)); n > 0 {
+				thin += 1.0 / float64(n)
+			}
+		}
+	}
+	return thin
+}
+
+// decreeCardTargets counts the legal targets a Decree card has on this board.
+func decreeCardTargets(g *root.Game, col string, suit root.Suit) int {
+	n := 0
 	switch col {
 	case "RECRUIT":
 		for cid, c := range g.Clearings {
 			if hasRoost(g, cid) && suitMatches(c.Suit, suit) {
-				return true
+				n++
 			}
 		}
 	case "MOVE":
 		for _, c := range g.Clearings {
 			if suitMatches(c.Suit, suit) && c.Warriors[root.ED] > 0 && len(c.Adj) > 0 {
-				return true
+				n++
 			}
 		}
 	case "BATTLE":
 		for _, c := range g.Clearings {
-			if !suitMatches(c.Suit, suit) || c.Warriors[root.ED] == 0 {
-				continue
-			}
-			for f, n := range c.Warriors {
-				if f != root.ED && n > 0 {
-					return true
-				}
-			}
-			for _, b := range c.Buildings {
-				if b.Owner != root.ED {
-					return true
-				}
-			}
-			for _, t := range c.Tokens {
-				if t.Owner != root.ED {
-					return true
-				}
+			if suitMatches(c.Suit, suit) && c.Warriors[root.ED] > 0 && hasEnemy(c) {
+				n++
 			}
 		}
 	case "BUILD":
 		for cid, c := range g.Clearings {
 			if suitMatches(c.Suit, suit) && g.Rules(root.ED, cid) && !hasRoost(g, cid) && c.FreeSlots() > 0 {
-				return true
+				n++
 			}
+		}
+	}
+	return n
+}
+
+func hasEnemy(c *root.Clearing) bool {
+	for f, n := range c.Warriors {
+		if f != root.ED && n > 0 {
+			return true
+		}
+	}
+	for _, b := range c.Buildings {
+		if b.Owner != root.ED {
+			return true
+		}
+	}
+	for _, t := range c.Tokens {
+		if t.Owner != root.ED {
+			return true
 		}
 	}
 	return false
