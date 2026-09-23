@@ -40,19 +40,24 @@ func main() {
 	g := root.NewGame([]root.Faction{root.MC, root.ED}, root.MC, uint64(seed))
 	root.BeginSetup(g)
 
+	ambiguous := 0
 	for i, line := range lines {
 		seq := lineSeq(line)
 		if *stop > 0 && seq > *stop {
 			break
 		}
-		a, ok := matchLine(g, line)
+		a, matches, ok := matchLine(g, line)
 		if !ok {
-			fmt.Printf("\nSTUCK at event %d: %q\n", i, line)
+			fmt.Printf("\nGAP at event %d: %q\n", i, line)
 			fmt.Println("legal actions and their RMN lines:")
 			for _, la := range g.LegalActions() {
 				fmt.Printf("  %-60s | %s\n", la.ID, rmnOf(g, la))
 			}
 			return
+		}
+		if matches > 1 {
+			ambiguous++
+			fmt.Printf("AMBIGUOUS event %d (%d matches): %s\n", i, matches, line)
 		}
 		if err := g.Apply(a); err != nil {
 			fmt.Printf("apply failed at %q: %v\n", line, err)
@@ -60,8 +65,13 @@ func main() {
 		}
 	}
 
-	fmt.Printf("\nreplayed to round %d.%s, actor=%s, MC vp=%d ED vp=%d\n",
-		g.Round, g.Phase, g.Actor(), g.Players[root.MC].VP, g.Players[root.ED].VP)
+	if ambiguous == 0 {
+		fmt.Printf("\nreplayed all %d events with no ambiguity\n", len(lines))
+	} else {
+		fmt.Printf("\nreplayed all %d events; %d ambiguous lines\n", len(lines), ambiguous)
+	}
+	fmt.Printf("round %d.%s, actor=%s, MC vp=%d ED vp=%d, winner=%v\n",
+		g.Round, g.Phase, g.Actor(), g.Players[root.MC].VP, g.Players[root.ED].VP, g.Winner)
 	if *dump {
 		dumpState(g)
 	}
@@ -101,9 +111,13 @@ func lineSeq(line string) int {
 	return n
 }
 
-// matchLine returns the legal action whose RMN output equals line.
-func matchLine(g *root.Game, line string) (root.Action, bool) {
+// matchLine returns the legal action whose RMN output equals line, plus how many
+// legal actions produced that exact line (more than one means the log is
+// under-specified).
+func matchLine(g *root.Game, line string) (root.Action, int, bool) {
 	base := len(g.RMNLog)
+	var found root.Action
+	n := 0
 	for _, a := range g.LegalActions() {
 		if forcedLeader != "" && a.Kind == "setup-ed-leader" && a.Leader != forcedLeader {
 			continue
@@ -113,10 +127,13 @@ func matchLine(g *root.Game, line string) (root.Action, bool) {
 			continue
 		}
 		if len(c.RMNLog) == base+1 && c.RMNLog[base] == line {
-			return a, true
+			n++
+			if n == 1 {
+				found = a
+			}
 		}
 	}
-	return root.Action{}, false
+	return found, n, n > 0
 }
 
 var forcedLeader string
