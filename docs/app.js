@@ -494,6 +494,12 @@ if (playersToggle) playersToggle.onclick = () => setDrawer(!document.body.classL
 if (drawerBackdrop) drawerBackdrop.onclick = () => setDrawer(false);
 window.addEventListener("keydown", (e) => { if (e.key === "Escape") setDrawer(false); });
 
+function doAction(id) {
+  if (thinking) return;
+  wasmCall("apply", [id]);
+}
+
+// wasmCall yields a frame so the spinner paints before the blocking WASM call.
 function wasmCall(fn, args) {
   if (!window.RootBot) return;
   thinking = true;
