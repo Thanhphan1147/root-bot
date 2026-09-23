@@ -93,6 +93,33 @@ func (b Passive) Choose(g *root.Game, f root.Faction) root.Action {
 	return acts[0]
 }
 
+// Composite plays a different policy per faction, so one bot can sit both
+// seats with the profile suited to each faction.
+type Composite struct {
+	ByFaction map[root.Faction]Bot
+}
+
+// Name implements Bot.
+func (c Composite) Name() string {
+	return "composite"
+}
+
+// Choose implements Bot.
+func (c Composite) Choose(g *root.Game, f root.Faction) root.Action {
+	if b, ok := c.ByFaction[f]; ok && b != nil {
+		return b.Choose(g, f)
+	}
+	return root.Action{}
+}
+
+// MakePair builds a per-side bot: mcSpec plays the Marquise, edSpec the Eyrie.
+func MakePair(mcSpec, edSpec string, seed int64, sims, rollout int) Composite {
+	return Composite{ByFaction: map[root.Faction]Bot{
+		root.MC: Make(mcSpec, seed, sims, rollout),
+		root.ED: Make(edSpec, seed+1, sims, rollout),
+	}}
+}
+
 // Make builds a bot from a spec: "random", "passive", "greedy:<profile>", or
 // "mcts:<profile>".
 func Make(spec string, seed int64, sims, rollout int) Bot {

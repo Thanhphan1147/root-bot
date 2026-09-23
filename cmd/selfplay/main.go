@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	games := flag.Int("games", 100, "games per match")
+	games := flag.Int("games", 100, "games per match (paired games count double)")
 	maxSteps := flag.Int("max", 6000, "max actions per game")
 	seed := flag.Int64("seed", 1, "base seed")
 	aSpec := flag.String("a", "greedy:full", "bot A spec (random | passive | greedy:<p> | mcts:<p>)")
@@ -33,19 +33,25 @@ func main() {
 	a := bot.Make(*aSpec, *seed, *sims, *rollout)
 	b := bot.Make(*bSpec, *seed+1, *sims, *rollout)
 	start := time.Now()
-	res := arena.Play(a, b, *games, *seed, *maxSteps, !*fix)
+	var res arena.Result
+	if *fix {
+		res = arena.Play(a, b, *games, *seed, *maxSteps, false)
+	} else {
+		res = arena.PlayPaired(a, b, *games, *seed, *maxSteps)
+	}
 	el := time.Since(start)
 	fmt.Printf("A=%s  B=%s\n", a.Name(), b.Name())
-	fmt.Printf("%d games in %s (%.1f games/s, avg %.0f steps)\n",
+	fmt.Printf("%d games in %s (%.2f games/s, avg %.0f steps)\n",
 		res.Games, el.Round(time.Millisecond), float64(res.Games)/el.Seconds(),
 		float64(res.Steps)/float64(res.Games))
-	fmt.Printf("A %d (%.0f%%)  B %d (%.0f%%)  draws %d\n",
-		res.A, pct(res.A, res.Games), res.B, pct(res.B, res.Games), res.Draws)
+	fmt.Printf("A %d (%.1f%% +/-%.1f)  B %d (%.1f%%)  draws %d  Elo(A-B) %+.0f\n",
+		res.A, pct(res.A, res.Games), 100*res.WinRateSE(),
+		res.B, pct(res.B, res.Games), res.Draws, res.EloA())
 }
 
 func runMatrix(games, maxSteps int, seed int64) {
 	hs := eval.Profiles
-	fmt.Printf("round-robin, %d games/pairing, greedy; cell = row's win rate\n", games)
+	fmt.Printf("round-robin, %d paired games/pairing, greedy; cell = row's win rate\n", games)
 	fmt.Printf("%-10s", "row\\col")
 	for _, h := range hs {
 		fmt.Printf("%9s", h.Label)
@@ -60,7 +66,7 @@ func runMatrix(games, maxSteps int, seed int64) {
 			}
 			botA := bot.Greedy{Eval: a, Rng: rand.New(rand.NewSource(seed + int64(i)*131 + int64(j)))}
 			botB := bot.Greedy{Eval: b, Rng: rand.New(rand.NewSource(seed + int64(j)*131 + int64(i)))}
-			res := arena.Play(botA, botB, games, seed+int64(i*97+j*13), maxSteps, true)
+			res := arena.PlayPaired(botA, botB, games, seed+int64(i*97+j*13), maxSteps)
 			fmt.Printf("%8.0f%%", pct(res.A, res.Games))
 		}
 		fmt.Println()
