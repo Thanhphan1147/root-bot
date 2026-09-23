@@ -8,6 +8,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"syscall/js"
 
 	"github.com/Thanhphan1147/root-bot/pkg/bot"
@@ -22,6 +23,7 @@ var (
 	botSims            = 200
 	botRollout         = 0
 	botSeed      int64 = 1
+	gameSeed     int
 )
 
 func newGame(human string, seed, sims int) {
@@ -40,7 +42,31 @@ func newGame(human string, seed, sims int) {
 	current = root.NewGame([]root.Faction{root.MC, root.ED}, root.MC, uint64(seed))
 	root.BeginSetup(current)
 	botSeed = int64(seed) + 1
+	gameSeed = seed
 	runBots()
+}
+
+// exportRMN returns the full, unredacted RMN for the current game, including
+// every hidden draw and deal, for replay and debugging.
+func exportRMN() string {
+	if current == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("%RMN 3.0\n")
+	fmt.Fprintf(&b, "%%Game demo-%d\n", gameSeed)
+	b.WriteString("%Map autumn\n%Deck standard\n")
+	for i, f := range current.Order {
+		fmt.Fprintf(&b, "%%Faction %s %s seat=%d\n", f, f.Kind(), i+1)
+	}
+	if current.First != "" {
+		fmt.Fprintf(&b, "%%First %s\n", current.First)
+	}
+	for _, line := range current.RMNLog {
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 // runBots plays consecutive bot turns until the human must act or the game ends.
@@ -140,6 +166,9 @@ func main() {
 		}),
 		"snapshot": js.FuncOf(func(this js.Value, args []js.Value) any {
 			return snapshotJSON()
+		}),
+		"export": js.FuncOf(func(this js.Value, args []js.Value) any {
+			return exportRMN()
 		}),
 	}
 	js.Global().Set("RootBot", js.ValueOf(api))

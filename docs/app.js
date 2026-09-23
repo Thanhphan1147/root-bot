@@ -476,6 +476,21 @@ for (const b of document.querySelectorAll("#sidepick button")) {
 document.getElementById("startgame").onclick = () => { hideStart(); newGame(chosenSide); };
 document.getElementById("newgame").onclick = () => { if (!thinking) showStart(); };
 
+// Export the engine's true, unredacted RMN log for replay and debugging.
+document.getElementById("exportrmn").onclick = () => {
+  if (!window.RootBot || !game) { toast("No game to export."); return; }
+  const text = RootBot.export();
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "root-demo.rmn";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
 function newGame(human) {
   const botSide = human === "MC" ? "ED" : "MC";
   if (window.RootBot) RootBot.setBot(PROFILES[botSide], 0);

@@ -38,8 +38,7 @@
   color: var(--paper);
 }
 
-/* The bot plays the Marquise or the Eyrie; mark the engine's chair. */
-.pcard .phead .f .engine-tag {
+/* The bot plays the Marquise or the Eyrie; mark the engine's chair. */.pcard .phead .f .engine-tag {
   margin-left: 0.35rem;
   padding: 0 0.25rem;
   border: 1px solid var(--gold);
@@ -47,3 +46,7 @@
   color: var(--gold);
   font-size: 0.56rem;
 }
+
+/* Footer: the unredacted export button. */
+.foot-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.sitefoot .btn { margin-top: 0; }
