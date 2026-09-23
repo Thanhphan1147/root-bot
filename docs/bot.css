@@ -97,20 +97,20 @@
 .movdot.MC { background: var(--mc); }
 .movdot.ED { background: var(--ed); }
 
-/* Notification card overlaid on a clearing during a battle or build. Slides
-   in and out via WAAPI (see cardKeyframes) around the fixed centre. */
+/* Notification panel that blanks out the whole clearing during a battle or
+   build so only the action reads. Slides in and out via WAAPI (see
+   cardKeyframes). The -1.5px inset covers the clearing's own border. */
 .clearingtag {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  inset: -1.5px;
   z-index: 12;
-  transform: translate(-50%, -50%);
+  transform: translateY(0);
   pointer-events: none;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.3rem 0.5rem;
+  padding: 0.3rem;
   border: 1.5px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--paper-2);
@@ -141,6 +141,6 @@
 }
 
 @media (max-width: 720px), (prefers-reduced-motion: reduce) {
-  .clearingtag { position: static; transform: none; width: 100%; margin-top: 0.3rem; }
+  .clearingtag { position: static; inset: auto; transform: none; width: 100%; margin-top: 0.3rem; }
   .clearing.flash { animation: none; box-shadow: 0 0 0 3px rgba(150, 52, 44, 0.35); }
 }

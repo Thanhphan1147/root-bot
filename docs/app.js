@@ -648,8 +648,8 @@ function cardKeyframes(dir) {
   if (tableMode || reducedMotion()) {
     return dir === "in" ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }];
   }
-  const center = "translate(-50%, -50%)";
-  const off = "translate(-50%, calc(-50% - 8px)) scale(.92)";
+  const center = "translateY(0) scale(1)";
+  const off = "translateY(-6px) scale(.97)";
   return dir === "in"
     ? [{ opacity: 0, transform: off }, { opacity: 1, transform: center }]
     : [{ opacity: 1, transform: center }, { opacity: 0, transform: off }];
