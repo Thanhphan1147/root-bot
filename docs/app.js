@@ -581,21 +581,105 @@ async function playBotTurn() {
 function showBanner(text, faction) {
   const el = document.getElementById("actionbanner");
   if (!el) return;
+  el.getAnimations && el.getAnimations().forEach((a) => a.cancel());
   el.textContent = text;
   el.className = "actionbanner " + (faction || "");
   el.hidden = false;
+  if (!reducedMotion()) {
+    el.animate(
+      [{ opacity: 0, transform: "translate(-50%, 8px)" }, { opacity: 1, transform: "translate(-50%, 0)" }],
+      { duration: 160, easing: "ease-out" }
+    );
+  }
 }
 function hideBanner() {
   const el = document.getElementById("actionbanner");
-  if (el) el.hidden = true;
+  if (!el || el.hidden) return;
+  if (reducedMotion()) { el.hidden = true; return; }
+  el.getAnimations && el.getAnimations().forEach((a) => a.cancel());
+  const a = el.animate(
+    [{ opacity: 1, transform: "translate(-50%, 0)" }, { opacity: 0, transform: "translate(-50%, 8px)" }],
+    { duration: 140, easing: "ease-in", fill: "forwards" }
+  );
+  a.onfinish = () => { el.hidden = true; a.cancel(); };
+}
+
+const BATTLE_KINDS = ["battle", "decree-battle", "vb-battle-ally", "vb-strike"];
+const BUILD_KINDS = ["mc-build", "decree-build", "setup-mc-build"];
+
+const GLYPH = {
+  sword: '<svg class="gi" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2v9M6 11h8M10 11v7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  hammer: '<svg class="gi" viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="2.5" width="10" height="4.5" rx="1" fill="currentColor"/><rect x="9.2" y="6.5" width="1.6" height="11.5" rx="0.8" fill="currentColor"/></svg>',
+};
+
+function clearingEl(id) {
+  return document.querySelector('.clearing[data-clearing="' + id + '"]');
+}
+
+// showClearingCard overlays a notification card on a clearing for the duration
+// of an action, sliding it in. hideClearingCard slides it out and removes it.
+function showClearingCard(clearing, html, faction) {
+  const el = clearingEl(clearing);
+  if (!el) return null;
+  el.classList.add("flash", faction || "");
+  const card = document.createElement("div");
+  card.className = "clearingtag " + (faction || "");
+  card.innerHTML = html;
+  el.appendChild(card);
+  if (!reducedMotion()) {
+    card.animate(cardKeyframes("in"), { duration: 180, easing: "ease-out" });
+  }
+  return card;
+}
+
+function hideClearingCard(card) {
+  return new Promise((resolve) => {
+    if (!card) { resolve(); return; }
+    if (reducedMotion() || !card.animate) { card.remove(); resolve(); return; }
+    const a = card.animate(cardKeyframes("out"), { duration: 150, easing: "ease-in", fill: "forwards" });
+    const done = () => { card.remove(); resolve(); };
+    a.onfinish = done;
+    a.oncancel = done;
+  });
+}
+
+function cardKeyframes(dir) {
+  const tableMode = window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+  if (tableMode || reducedMotion()) {
+    return dir === "in" ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }];
+  }
+  const center = "translate(-50%, -50%)";
+  const off = "translate(-50%, calc(-50% - 8px)) scale(.92)";
+  return dir === "in"
+    ? [{ opacity: 0, transform: off }, { opacity: 1, transform: center }]
+    : [{ opacity: 1, transform: center }, { opacity: 0, transform: off }];
+}
+
+function battleCard(a) {
+  const atk = `<span class="tagf ${a.faction}">${a.faction}</span>`;
+  const def = a.target ? `<span class="tagf ${a.target}">${a.target}</span>` : "";
+  return atk + GLYPH.sword + def;
+}
+function buildCard(a) {
+  const f = `<span class="tagf ${a.faction}">${a.faction}</span>`;
+  const name = a.building || (a.faction === "ED" ? "roost" : "");
+  const b = name ? `<span class="tagg">${name}</span>` : "";
+  return f + GLYPH.hammer + b;
 }
 
 function bannerText(a) {
+  const who = FACTION_NAME[a.faction] || a.faction;
   if (a.kind === "move" && a.from && a.to && a.amount) {
-    const who = FACTION_NAME[a.faction] || a.faction;
     return `${who} moving ${a.amount} warrior${a.amount > 1 ? "s" : ""} ${a.from} → ${a.to}`;
   }
-  return (a.faction ? (FACTION_NAME[a.faction] || a.faction) + ": " : "") + (a.label || a.id);
+  if (BATTLE_KINDS.includes(a.kind) && a.clearing) {
+    return `${who} attacking ${a.target || "?"} in ${a.clearing}`;
+  }
+  if (BUILD_KINDS.includes(a.kind) && a.clearing) {
+    const name = a.building || (a.faction === "ED" ? "roost" : "a building");
+    return `${who} building ${name} at ${a.clearing}`;
+  }
+  return (a.faction ? who + ": " : "") + (a.label || a.id);
 }
 
 // withSourceMoved copies the state with the moving warriors already removed from
@@ -612,8 +696,9 @@ function withSourceMoved(pre, a) {
   return g;
 }
 
-// animateAction plays one engine action: for a move, drop the source count,
-// slide a dot along the road, then raise the destination count.
+// animateAction plays one engine action: moves slide a dot along the road,
+// battles and builds flash the clearing with a notification card, then the
+// resulting position is committed.
 async function animateAction(pre, a, post) {
   const isMove = a.kind === "move" && a.from && a.to && a.amount > 0;
   if (isMove) {
@@ -624,6 +709,28 @@ async function animateAction(pre, a, post) {
     game = post; // step 3: destination count rises
     render();
     await sleep(reducedMotion() ? 0 : 120);
+    hideBanner();
+    return;
+  }
+  if (BATTLE_KINDS.includes(a.kind) && a.clearing) {
+    showBanner(bannerText(a), a.faction);
+    const card = showClearingCard(a.clearing, battleCard(a), a.faction);
+    await sleep(reducedMotion() ? 0 : 560);
+    await hideClearingCard(card);
+    game = post;
+    render();
+    await sleep(reducedMotion() ? 0 : 100);
+    hideBanner();
+    return;
+  }
+  if (BUILD_KINDS.includes(a.kind) && a.clearing) {
+    showBanner(bannerText(a), a.faction);
+    const card = showClearingCard(a.clearing, buildCard(a), a.faction);
+    await sleep(reducedMotion() ? 0 : 360);
+    await hideClearingCard(card);
+    game = post;
+    render();
+    await sleep(reducedMotion() ? 0 : 100);
     hideBanner();
     return;
   }

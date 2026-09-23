@@ -96,3 +96,51 @@
 }
 .movdot.MC { background: var(--mc); }
 .movdot.ED { background: var(--ed); }
+
+/* Notification card overlaid on a clearing during a battle or build. Slides
+   in and out via WAAPI (see cardKeyframes) around the fixed centre. */
+.clearingtag {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 12;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  box-shadow: var(--shadow-lift);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.clearingtag.MC { border-color: var(--mc); color: var(--mc); }
+.clearingtag.ED { border-color: var(--ed); color: var(--ed); }
+.clearingtag .gi { width: 0.85rem; height: 0.85rem; display: block; }
+.clearingtag .tagf { padding: 0 0.28rem; border-radius: 4px; color: #fff; }
+.clearingtag .tagf.MC { background: var(--mc); }
+.clearingtag .tagf.ED { background: var(--ed); }
+.clearingtag .tagg { color: var(--ink-soft); font-weight: 600; }
+
+/* Pulsing highlight so the affected clearing reads even without the card. */
+.clearing.flash {
+  z-index: 5;
+  border-color: var(--ink);
+  animation: clearflash 0.42s ease-in-out 2;
+}
+@keyframes clearflash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(150, 52, 44, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(150, 52, 44, 0.35); }
+}
+
+@media (max-width: 720px), (prefers-reduced-motion: reduce) {
+  .clearingtag { position: static; transform: none; width: 100%; margin-top: 0.3rem; }
+  .clearing.flash { animation: none; box-shadow: 0 0 0 3px rgba(150, 52, 44, 0.35); }
+}
