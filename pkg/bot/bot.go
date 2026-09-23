@@ -56,7 +56,7 @@ func (b Greedy) Choose(g *root.Game, f root.Faction) root.Action {
 	ties := 0
 	for i := range acts {
 		c := g.CloneForSearch()
-		if err := c.Apply(acts[i]); err != nil {
+		if err := c.ApplyFast(acts[i]); err != nil {
 			continue
 		}
 		s := b.Eval.Eval(c, f)
