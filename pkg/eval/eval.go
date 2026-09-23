@@ -28,6 +28,8 @@ type Weights struct {
 	EDDecree        float64 // decree cards queued
 	EDLeader        float64 // a leader is seated (avoids early turmoil)
 	EDLeaderAbility float64 // per-leader strategic value (see edLeaderScore)
+	LeaderPick      string  // if set, strongly prefer this leader (for testing)
+	LeaderBonus     float64 // bonus when the picked leader is seated
 	KeepBonus       float64 // Marquise keep still on the board
 	EDRisk          float64 // per decree card with no legal target
 	EDThin          float64 // per-unit risk for decree cards with few legal targets
@@ -92,7 +94,10 @@ func factionValue(g *root.Game, f root.Faction, w Weights) float64 {
 		v += w.EDDecree * float64(decreeSize(p))
 		if p.Leader != "" {
 			v += w.EDLeader
-			v += w.EDLeaderAbility * edLeaderScore(p.Leader)
+			v += w.EDLeaderAbility * edLeaderScore(g, p.Leader)
+		}
+		if w.LeaderPick != "" && p.Leader == w.LeaderPick {
+			v += w.LeaderBonus
 		}
 		v -= w.EDRisk * edDecreeRisk(g)
 		v -= w.EDThin * edDecreeThin(g)
@@ -270,6 +275,8 @@ var Profiles = []Heuristic{
 		W: Weights{
 			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
 			EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
+			// Despot is the strongest starter (Build vizier + removal VP).
+			LeaderPick: "despot", LeaderBonus: 100,
 		},
 	},
 	{
@@ -281,12 +288,27 @@ var Profiles = []Heuristic{
 		},
 	},
 	{
-		// Eyrie: build roosts as fast as possible for the VP engine.
 		Label: "ed-roost2",
 		W: Weights{
 			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
 			EDRoost: 2.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
 		},
+	},
+	{
+		Label: "lead-despot",
+		W:     Weights{VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25, EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0, LeaderPick: "despot", LeaderBonus: 100},
+	},
+	{
+		Label: "lead-charismatic",
+		W:     Weights{VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25, EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0, LeaderPick: "charismatic", LeaderBonus: 100},
+	},
+	{
+		Label: "lead-commander",
+		W:     Weights{VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25, EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0, LeaderPick: "commander", LeaderBonus: 100},
+	},
+	{
+		Label: "lead-builder",
+		W:     Weights{VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25, EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0, LeaderPick: "builder", LeaderBonus: 100},
 	},
 	{
 		Label: "ed-roost3",
@@ -460,16 +482,49 @@ func hasEnemy(c *root.Clearing) bool {
 	return false
 }
 
-func edLeaderScore(leader string) float64 {
+// edLeaderScore values an Eyrie leader for the current board.
+//
+// Despot is the strongest starter (a free Build vizier plus VP for removing
+// enemy buildings and tokens), so it dominates. The others are only worth
+// switching to when the board clearly suits them.
+func edLeaderScore(g *root.Game, leader string) float64 {
+	p := g.Players[root.ED]
+	if p == nil {
+		return 0
+	}
+	warriors, roosts := 0, 0
+	for cid, c := range g.Clearings {
+		warriors += c.Warriors[root.ED]
+		if hasRoost(g, cid) {
+			roosts++
+		}
+	}
 	switch leader {
-	case "charismatic": // recruit two warriors per Recruit card — fastest board
-		return 1.0
-	case "despot": // a free Build vizier plus VP for removing enemy pieces
-		return 0.8
-	case "builder": // crafting VP (ignores Disdain for Trade)
-		return 0.5
-	case "commander": // combat only
-		return 0.1
+	case "despot":
+		// Best overall, and its Build vizier helps when roosts are scarce.
+		s := 1.0
+		if roosts < 3 {
+			s += 0.4
+		}
+		return s
+	case "charismatic":
+		// Recruit two per card is best from a thin board.
+		if warriors < 4 {
+			return 0.5
+		}
+		return 0.05
+	case "commander":
+		// Extra hit as attacker only matters with a real army.
+		if warriors >= 8 {
+			return 0.5
+		}
+		return 0.05
+	case "builder":
+		// Crafting VP is a late-game finisher.
+		if p.VP >= 24 {
+			return 0.6
+		}
+		return 0.05
 	}
 	return 0
 }

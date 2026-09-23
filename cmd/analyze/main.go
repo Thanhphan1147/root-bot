@@ -25,6 +25,7 @@ func main() {
 	mcKinds := map[string]int{}
 	edKinds := map[string]int{}
 	leaders := map[string]int{}
+	setupLeaders := map[string]int{}
 	sumEDRoost, sumMCRoost, sumTurmoil := 0, 0, 0
 	edWins := 0
 	for i := 0; i < *games; i++ {
@@ -64,6 +65,12 @@ func main() {
 					leaders[fs[len(fs)-1]]++
 				}
 			}
+			if e.Kind == "setup" && strings.Contains(e.Text, "chose leader") {
+				fs := strings.Fields(e.Text)
+				if len(fs) >= 3 {
+					setupLeaders[fs[len(fs)-1]]++
+				}
+			}
 		}
 		sumEDRoost += countByOwner(g, root.ED)
 		sumMCRoost += countByOwner(g, root.MC)
@@ -76,7 +83,8 @@ func main() {
 		avg(sumEDRoost, *games), avg(sumMCRoost, *games), avg(sumTurmoil, *games))
 	printKinds("MC actions", mcKinds)
 	printKinds("ED actions", edKinds)
-	printKinds("ED leaders chosen", leaders)
+	printKinds("ED leaders chosen (later)", leaders)
+	printKinds("ED setup leaders", setupLeaders)
 }
 
 func countByOwner(g *root.Game, f root.Faction) int {
