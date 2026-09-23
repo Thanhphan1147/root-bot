@@ -59,23 +59,17 @@
   <a href="https://github.com/Thanhphan1147/root-bot" target="_blank" rel="noopener">root-bot</a>
 </footer>
 
-<!-- Start: choose a side and engine strength -->
+<!-- Start: choose a side -->
 <div class="overlay" id="start" hidden>
   <div class="card">
     <h2>Play ROOT against the engine</h2>
-    <p>Pick a side — the engine plays the other. Both sides use a tuned bot.</p>
+    <p>Pick a side — the engine plays the other with its tuned bot.</p>
     <label>Your side</label>
     <div class="sidepick" id="sidepick">
-      <button type="button" data-side="MC" class="MC">Marquise de Cat</button>
+      <button type="button" data-side="MC" class="MC on">Marquise de Cat</button>
       <button type="button" data-side="ED" class="ED">Eyrie Dynasties</button>
     </div>
-    <label>Engine strength</label>
-    <div class="strengthpick" id="strengthpick">
-      <button type="button" data-level="fast">fast</button>
-      <button type="button" data-level="strong" class="on">strong</button>
-      <button type="button" data-level="max">max</button>
-    </div>
-    <button id="startgame" class="btn" type="button">Start game</button>
+    <button id="startgame" class="btn" type="button" disabled>Loading engine…</button>
   </div>
 </div>
 

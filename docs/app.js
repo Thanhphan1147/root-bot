@@ -444,23 +444,27 @@ let game = null;
 let viewer = "";
 let thinking = false;
 
-// The engine plays whichever faction you do not, so each side gets its own
-// profile (the Eyrie profile is tuned for the Decree, which the Marquise lacks).
-const STRENGTH = {
-  fast: { MC: "greedy:material", ED: "greedy:material" },
-  strong: { MC: "greedy:material", ED: "greedy:eyrie" },
-  max: { MC: "mcts:material", ED: "mcts:eyrie" },
-};
-const SIMS = { fast: 0, strong: 0, max: 400 };
+// The engine plays whichever faction you do not; each side has one tuned bot.
+const PROFILES = { MC: "greedy:material", ED: "greedy:eyrie" };
 
 let chosenSide = "MC";
-let chosenLevel = "strong";
 
 function showStart() {
   document.getElementById("start").hidden = false;
 }
 function hideStart() {
   document.getElementById("start").hidden = true;
+}
+function engineReady() {
+  const b = document.getElementById("startgame");
+  b.disabled = false;
+  b.textContent = "Start game";
+}
+function engineError(msg) {
+  const b = document.getElementById("startgame");
+  b.disabled = true;
+  b.textContent = "Engine failed to load";
+  toast(msg);
 }
 
 for (const b of document.querySelectorAll("#sidepick button")) {
@@ -469,19 +473,12 @@ for (const b of document.querySelectorAll("#sidepick button")) {
     for (const x of document.querySelectorAll("#sidepick button")) x.classList.toggle("on", x === b);
   };
 }
-for (const b of document.querySelectorAll("#strengthpick button")) {
-  b.onclick = () => {
-    chosenLevel = b.dataset.level;
-    for (const x of document.querySelectorAll("#strengthpick button")) x.classList.toggle("on", x === b);
-  };
-}
-document.getElementById("startgame").onclick = () => { hideStart(); newGame(chosenSide, chosenLevel); };
+document.getElementById("startgame").onclick = () => { hideStart(); newGame(chosenSide); };
 document.getElementById("newgame").onclick = () => { if (!thinking) showStart(); };
 
-function newGame(human, level) {
+function newGame(human) {
   const botSide = human === "MC" ? "ED" : "MC";
-  const spec = (STRENGTH[level] || STRENGTH.strong)[botSide];
-  if (window.RootBot) RootBot.setBot(spec, SIMS[level] || 0);
+  if (window.RootBot) RootBot.setBot(PROFILES[botSide], 0);
   wasmCall("newGame", [human, Math.floor(Math.random() * 1e9), 0]);
 }
 
@@ -497,16 +494,6 @@ if (playersToggle) playersToggle.onclick = () => setDrawer(!document.body.classL
 if (drawerBackdrop) drawerBackdrop.onclick = () => setDrawer(false);
 window.addEventListener("keydown", (e) => { if (e.key === "Escape") setDrawer(false); });
 
-function newGame() {
-  const human = document.getElementById("side").value;
-  const botSide = human === "MC" ? "ED" : "MC";
-  const level = document.getElementById("strength").value;
-  const spec = (STRENGTH[level] || STRENGTH.strong)[botSide];
-  if (window.RootBot) RootBot.setBot(spec, SIMS[level] || 0);
-  wasmCall("newGame", [human, Math.floor(Math.random() * 1e9), 0]);
-}
-
-// wasmCall yields a frame so the spinner paints before the blocking WASM call.
 function wasmCall(fn, args) {
   if (!window.RootBot) return;
   thinking = true;
@@ -549,23 +536,24 @@ function render() {
 }
 
 async function boot() {
+  showStart(); // show the page immediately; Start stays disabled until ready
   try {
     const bytes = await (await fetch("bot.wasm")).arrayBuffer();
     const go = new Go();
     const mod = await WebAssembly.instantiate(bytes, go.importObject);
     go.run(mod.instance);
   } catch (e) {
-    document.getElementById("actions").innerHTML = `<div class="winner">Failed to load the engine: ${e}</div>`;
+    engineError("Failed to load the engine: " + e);
     return;
   }
-  for (let i = 0; i < 300 && !window.RootBot; i++) {
+  for (let i = 0; i < 600 && !window.RootBot; i++) {
     await new Promise(r => setTimeout(r, 20));
   }
   if (!window.RootBot) {
-    document.getElementById("actions").innerHTML = '<div class="winner">The engine did not start.</div>';
+    engineError("The engine did not start.");
     return;
   }
-  showStart();
+  engineReady();
 }
 
 boot();
