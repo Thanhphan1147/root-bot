@@ -12,6 +12,7 @@ import (
 	"syscall/js"
 
 	"github.com/Thanhphan1147/root-bot/pkg/bot"
+	"github.com/Thanhphan1147/root-bot/pkg/replay"
 	"github.com/Thanhphan1147/root-mn/pkg/root"
 )
 
@@ -167,6 +168,22 @@ func main() {
 		}),
 		"export": js.FuncOf(func(this js.Value, args []js.Value) any {
 			return exportRMN()
+		}),
+		// replay reconstructs a whole game from an RMN log: it returns the start
+		// state plus one state (and action) per event, for a replay viewer.
+		"replay": js.FuncOf(func(this js.Value, args []js.Value) any {
+			if len(args) < 1 {
+				return withError("no log")
+			}
+			res, err := replay.Run(args[0].String())
+			if err != nil {
+				return withError(err.Error())
+			}
+			b, err := json.Marshal(res)
+			if err != nil {
+				return withError(err.Error())
+			}
+			return string(b)
 		}),
 	}
 	js.Global().Set("RootBot", js.ValueOf(api))
