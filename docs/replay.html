@@ -46,23 +46,25 @@
   </section>
 </main>
 
-<div class="replaybar" id="replaybar">
-  <button id="play" class="btn" type="button" aria-label="Play or pause">▶</button>
-  <button id="prev" class="btn ghost" type="button" aria-label="Previous event">‹</button>
-  <button id="next" class="btn ghost" type="button" aria-label="Next event">›</button>
-  <div class="track">
-    <input type="range" id="timeline" min="0" max="0" value="0" step="1" aria-label="Timeline" />
-    <div class="ticks" id="ticks" aria-hidden="true"></div>
+<div class="replayfoot">
+  <div class="replaybar" id="replaybar">
+    <button id="play" class="btn" type="button" aria-label="Play or pause">▶</button>
+    <button id="prev" class="btn ghost" type="button" aria-label="Previous event">‹</button>
+    <button id="next" class="btn ghost" type="button" aria-label="Next event">›</button>
+    <div class="track">
+      <input type="range" id="timeline" min="0" max="0" value="0" step="1" aria-label="Timeline" />
+      <div class="ticks" id="ticks" aria-hidden="true"></div>
+    </div>
+    <label class="speedwrap">speed
+      <select id="speed">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
+    </label>
   </div>
-  <span class="rlabel" id="rlabel">no replay loaded</span>
-  <label class="speedwrap">speed
-    <select id="speed">
-      <option value="0.5">0.5×</option>
-      <option value="1" selected>1×</option>
-      <option value="2">2×</option>
-      <option value="4">4×</option>
-    </select>
-  </label>
+  <div class="replaylabel"><span id="rlabel">no replay loaded</span></div>
 </div>
 
 <footer class="sitefoot">
