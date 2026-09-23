@@ -478,19 +478,70 @@ for (const b of document.querySelectorAll("#sidepick button")) {
 document.getElementById("startgame").onclick = () => { hideStart(); newGame(chosenSide); };
 document.getElementById("newgame").onclick = () => { if (!thinking) showStart(); };
 
-// Export the engine's true, unredacted RMN log for replay and debugging.
+// Export the engine's true, unredacted RMN log. A direct download is unreliable
+// on mobile browsers, so we show the text in a dialog with Copy (and Share /
+// Download where supported).
+const exportDlg = document.getElementById("exportdlg");
+const exportText = document.getElementById("exporttext");
+const exportStatus = document.getElementById("exportstatus");
+const exportShare = document.getElementById("exportshare");
+
 document.getElementById("exportrmn").onclick = () => {
   if (!window.RootBot || !game) { toast("No game to export."); return; }
-  const text = RootBot.export();
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "root-demo.rmn";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  exportText.value = RootBot.export();
+  exportStatus.textContent = "";
+  exportDlg.hidden = false;
+  exportShare.hidden = !(navigator.canShare && window.File);
+  exportText.focus();
+  exportText.setSelectionRange(0, 0);
+};
+document.getElementById("exportclose").onclick = () => { exportDlg.hidden = true; };
+
+document.getElementById("exportcopy").onclick = async () => {
+  const text = exportText.value;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      exportText.focus();
+      exportText.select();
+      document.execCommand("copy");
+    }
+    exportStatus.textContent = "Copied " + text.length + " characters.";
+  } catch (e) {
+    exportText.focus();
+    exportText.select();
+    exportStatus.textContent = "Copy failed — select the text and copy manually.";
+  }
+};
+
+document.getElementById("exportdl").onclick = () => {
+  try {
+    const blob = new Blob([exportText.value], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "root-demo.rmn";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    exportStatus.textContent = "Download started (if your browser allows it).";
+  } catch (e) {
+    exportStatus.textContent = "Download not supported here — use Copy.";
+  }
+};
+
+exportShare.onclick = async () => {
+  const text = exportText.value;
+  try {
+    const file = new File([text], "root-demo.rmn", { type: "text/plain" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "ROOT RMN" });
+    } else {
+      await navigator.share({ title: "ROOT RMN", text });
+    }
+  } catch (e) { /* user cancelled */ }
 };
 
 function newGame(human) {

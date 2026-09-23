@@ -78,6 +78,22 @@
   </div>
 </div>
 
+<!-- Export: works on mobile (copy/share), not just download -->
+<div class="overlay" id="exportdlg" hidden>
+  <div class="card">
+    <h2>Export RMN</h2>
+    <p>Full, unredacted log. On mobile, copy it and paste it into the <a href="replay.html">replay viewer</a>.</p>
+    <textarea id="exporttext" rows="10" readonly spellcheck="false"></textarea>
+    <div class="exportrow">
+      <button id="exportcopy" class="btn" type="button">Copy</button>
+      <button id="exportdl" class="btn ghost" type="button">Download</button>
+      <button id="exportshare" class="btn ghost" type="button" hidden>Share</button>
+      <button id="exportclose" class="btn ghost" type="button">Close</button>
+    </div>
+    <div class="err" id="exportstatus"></div>
+  </div>
+</div>
+
 <script src="wasm_exec.js"></script>
 <script src="app.js"></script>
 </body>
