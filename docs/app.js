@@ -535,10 +535,28 @@ function render() {
   renderRMN(g);
 }
 
+// loadEngineBytes prefers a pre-gzipped bundle (GitHub Pages serves the raw
+// wasm uncompressed, ~3.9 MB vs ~1 MB gzipped). Falls back to the raw file when
+// the browser cannot inflate it.
+async function loadEngineBytes() {
+  if (typeof DecompressionStream === "function") {
+    try {
+      const r = await fetch("bot.wasm.gz");
+      if (r.ok) {
+        const stream = r.body.pipeThrough(new DecompressionStream("gzip"));
+        return await new Response(stream).arrayBuffer();
+      }
+    } catch (e) {
+      /* fall through to the raw file */
+    }
+  }
+  return await (await fetch("bot.wasm")).arrayBuffer();
+}
+
 async function boot() {
   showStart(); // show the page immediately; Start stays disabled until ready
   try {
-    const bytes = await (await fetch("bot.wasm")).arrayBuffer();
+    const bytes = await loadEngineBytes();
     const go = new Go();
     const mod = await WebAssembly.instantiate(bytes, go.importObject);
     go.run(mod.instance);
