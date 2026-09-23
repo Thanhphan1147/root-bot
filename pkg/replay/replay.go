@@ -119,18 +119,22 @@ func match(g *root.Game, line string) (root.Action, int) {
 	return found, n
 }
 
-// leanState is a snapshot without the RMN (which grows every step and would
-// make the payload quadratic) and without `legal`/`cards` (not needed to draw
-// the board). The human log is trimmed to its tail: enough to show recent
-// events without carrying the whole history in every step.
+// leanState is a snapshot of a deep copy of the game: root.Snapshot returns the
+// live Clearings/Players by reference, so without the clone every step would
+// encode the final board. It drops the RMN (which grows every step and would
+// make the payload quadratic) and `legal`/`cards` (not needed to draw the
+// board), and trims the human log to its tail.
 func leanState(g *root.Game) map[string]any {
-	s := root.Snapshot(g)
+	c := g.CloneForSearch() // deep copy; drops logs
+	s := root.Snapshot(c)
 	delete(s, "rmn")
 	delete(s, "legal")
 	delete(s, "cards")
-	if l, ok := s["log"].([]root.LogEntry); ok && len(l) > 40 {
-		s["log"] = l[len(l)-40:]
+	l := g.Log
+	if len(l) > 40 {
+		l = l[len(l)-40:]
 	}
+	s["log"] = l
 	return s
 }
 
