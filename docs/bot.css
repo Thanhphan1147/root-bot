@@ -51,17 +51,25 @@
 .foot-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .sitefoot .btn { margin-top: 0; }
 
-/* Action banner shown while the engine's move is animated. */
+/* Action banner shown while the engine's move is animated. Fixed so showing
+   and hiding it never shifts the board. */
 .actionbanner {
-  margin: 0 0 0.5rem;
-  padding: 0.5rem 0.7rem;
+  position: fixed;
+  left: 50%;
+  bottom: 3.4rem;
+  transform: translateX(-50%);
+  z-index: 210;
+  max-width: min(92vw, 560px);
+  margin: 0;
+  padding: 0.5rem 0.8rem;
   border: 1.5px solid var(--line-strong);
   border-left-width: 4px;
   border-radius: var(--radius);
   background: var(--paper-2);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lift);
   font-family: var(--mono);
   font-size: 0.72rem;
+  text-align: center;
 }
 .actionbanner[hidden] { display: none; }
 .actionbanner.MC { border-left-color: var(--mc); color: var(--mc); }
