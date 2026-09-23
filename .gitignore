@@ -2,3 +2,6 @@
 /root-bot
 *.test
 *.out
+
+# compiled tools
+/replay
