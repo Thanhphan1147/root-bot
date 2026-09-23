@@ -36,6 +36,7 @@ func main() {
 	cands := []candidate{
 		{"shipped", "greedy:material", "greedy:eyrie"},
 		{"mcts", "mcts:material", "mcts:eyrie"},
+		{"mcts-tac", "tactical:mcts:material", "tactical:mcts:eyrie"},
 	}
 	if *only != "" {
 		want := map[string]bool{}

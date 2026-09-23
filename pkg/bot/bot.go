@@ -141,6 +141,8 @@ func MakeWorlds(spec string, seed int64, sims, rollout, worlds int, raw bool) Bo
 		return Random{Rng: rng}
 	case spec == "passive":
 		return Passive{}
+	case strings.HasPrefix(spec, "tactical:"):
+		return Tactical{Inner: MakeWorlds(strings.TrimPrefix(spec, "tactical:"), seed, sims, rollout, worlds, raw)}
 	case strings.HasPrefix(spec, "greedy:"):
 		if h, ok := eval.ProfileByName(strings.TrimPrefix(spec, "greedy:")); ok {
 			return Greedy{Eval: h, Rng: rng}

@@ -444,8 +444,10 @@ let game = null;
 let viewer = "";
 let thinking = false;
 
-// The engine plays whichever faction you do not; each side has one tuned bot.
-const PROFILES = { MC: "greedy:material", ED: "greedy:eyrie" };
+// The engine plays whichever faction you do not. Both sides run the fair,
+// determinized MCTS (it resamples your hidden cards, so it does not cheat).
+const SIMS = 300;
+const PROFILES = { MC: "mcts:material", ED: "mcts:eyrie" };
 
 let chosenSide = "MC";
 
@@ -493,7 +495,7 @@ document.getElementById("exportrmn").onclick = () => {
 
 function newGame(human) {
   const botSide = human === "MC" ? "ED" : "MC";
-  if (window.RootBot) RootBot.setBot(PROFILES[botSide], 0);
+  if (window.RootBot) RootBot.setBot(PROFILES[botSide], SIMS);
   runHuman("newGame", [human, Math.floor(Math.random() * 1e9), 0]);
 }
 
