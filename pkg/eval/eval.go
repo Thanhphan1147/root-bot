@@ -22,14 +22,15 @@ type Weights struct {
 	Card     float64 // cards in hand
 
 	// Faction terms (absolute, only for the faction they belong to).
-	MCWood    float64 // board wood + supply
-	MCBuild   float64 // sawmills/workshops/recruiters placed
-	EDRoost   float64 // roosts on the map
-	EDDecree  float64 // decree cards queued
-	EDLeader  float64 // a leader is seated (avoids early turmoil)
-	KeepBonus float64 // Marquise keep still on the board
-	EDRisk    float64 // per decree card with no legal target
-	EDThin    float64 // per-unit risk for decree cards with few legal targets
+	MCWood          float64 // board wood + supply
+	MCBuild         float64 // sawmills/workshops/recruiters placed
+	EDRoost         float64 // roosts on the map
+	EDDecree        float64 // decree cards queued
+	EDLeader        float64 // a leader is seated (avoids early turmoil)
+	EDLeaderAbility float64 // per-leader strategic value (see edLeaderScore)
+	KeepBonus       float64 // Marquise keep still on the board
+	EDRisk          float64 // per decree card with no legal target
+	EDThin          float64 // per-unit risk for decree cards with few legal targets
 }
 
 // Heuristic is a weighted evaluator.
@@ -91,6 +92,7 @@ func factionValue(g *root.Game, f root.Faction, w Weights) float64 {
 		v += w.EDDecree * float64(decreeSize(p))
 		if p.Leader != "" {
 			v += w.EDLeader
+			v += w.EDLeaderAbility * edLeaderScore(p.Leader)
 		}
 		v -= w.EDRisk * edDecreeRisk(g)
 		v -= w.EDThin * edDecreeThin(g)
@@ -265,6 +267,14 @@ var Profiles = []Heuristic{
 		// Eyrie: rush roosts as the VP engine (they score and draw every
 		// Evening) while keeping the Decree resolvable. No defense weighting.
 		Label: "eyrie",
+		W: Weights{
+			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
+			EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
+		},
+	},
+	{
+		// Same as "eyrie" but with no leader-ability term (control).
+		Label: "eyrie0",
 		W: Weights{
 			VP: 1.2, Warrior: 0.15, Building: 0.8, Token: 0.3, Rule: 0.7, Card: 0.25,
 			EDRoost: 4.0, EDLeader: 0.6, KeepBonus: 1.2, EDRisk: 4.0,
@@ -448,6 +458,20 @@ func hasEnemy(c *root.Clearing) bool {
 		}
 	}
 	return false
+}
+
+func edLeaderScore(leader string) float64 {
+	switch leader {
+	case "charismatic": // recruit two warriors per Recruit card — fastest board
+		return 1.0
+	case "despot": // a free Build vizier plus VP for removing enemy pieces
+		return 0.8
+	case "builder": // crafting VP (ignores Disdain for Trade)
+		return 0.5
+	case "commander": // combat only
+		return 0.1
+	}
+	return 0
 }
 
 func hasRoost(g *root.Game, c string) bool {

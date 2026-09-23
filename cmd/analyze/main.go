@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strings"
 
 	"github.com/Thanhphan1147/root-bot/pkg/bot"
 	"github.com/Thanhphan1147/root-mn/pkg/root"
@@ -23,6 +24,7 @@ func main() {
 	rng := rand.New(rand.NewSource(1))
 	mcKinds := map[string]int{}
 	edKinds := map[string]int{}
+	leaders := map[string]int{}
 	sumEDRoost, sumMCRoost, sumTurmoil := 0, 0, 0
 	edWins := 0
 	for i := 0; i < *games; i++ {
@@ -56,6 +58,12 @@ func main() {
 			if e.Kind == "turmoil" {
 				sumTurmoil++
 			}
+			if e.Kind == "leader" {
+				fs := strings.Fields(e.Text)
+				if len(fs) >= 3 {
+					leaders[fs[len(fs)-1]]++
+				}
+			}
 		}
 		sumEDRoost += countByOwner(g, root.ED)
 		sumMCRoost += countByOwner(g, root.MC)
@@ -68,6 +76,7 @@ func main() {
 		avg(sumEDRoost, *games), avg(sumMCRoost, *games), avg(sumTurmoil, *games))
 	printKinds("MC actions", mcKinds)
 	printKinds("ED actions", edKinds)
+	printKinds("ED leaders chosen", leaders)
 }
 
 func countByOwner(g *root.Game, f root.Faction) int {
