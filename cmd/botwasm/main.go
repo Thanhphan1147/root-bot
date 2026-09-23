@@ -43,7 +43,6 @@ func newGame(human string, seed, sims int) {
 	root.BeginSetup(current)
 	botSeed = int64(seed) + 1
 	gameSeed = seed
-	runBots()
 }
 
 // exportRMN returns the full, unredacted RMN for the current game, including
@@ -67,29 +66,6 @@ func exportRMN() string {
 		b.WriteByte('\n')
 	}
 	return b.String()
-}
-
-// runBots plays consecutive bot turns until the human must act or the game ends.
-func runBots() {
-	if current == nil {
-		return
-	}
-	for i := 0; i < 500; i++ {
-		if len(current.Winner) > 0 || current.Actor() != botFaction {
-			break
-		}
-		if len(current.LegalActions()) == 0 {
-			break
-		}
-		b := makeBot()
-		mv := b.Choose(current, botFaction)
-		if mv.ID == "" {
-			break
-		}
-		if err := current.Apply(mv); err != nil {
-			break
-		}
-	}
 }
 
 func makeBot() bot.Bot {
@@ -152,8 +128,30 @@ func main() {
 				b, _ := json.Marshal(out)
 				return string(b)
 			}
-			runBots()
 			return snapshotJSON()
+		}),
+		// botStep plays exactly one engine action and returns it with the
+		// resulting state, so the client can animate the bot's turn.
+		"botStep": js.FuncOf(func(this js.Value, args []js.Value) any {
+			if current == nil || len(current.Winner) > 0 || current.Actor() != botFaction {
+				return `{"done":true}`
+			}
+			if len(current.LegalActions()) == 0 {
+				return `{"done":true}`
+			}
+			mv := makeBot().Choose(current, botFaction)
+			if mv.ID == "" {
+				return `{"done":true}`
+			}
+			if err := current.Apply(mv); err != nil {
+				return withError(err.Error())
+			}
+			ab, _ := json.Marshal(mv)
+			var act, st any
+			_ = json.Unmarshal(ab, &act)
+			_ = json.Unmarshal([]byte(snapshotJSON()), &st)
+			out, _ := json.Marshal(map[string]any{"action": act, "state": st})
+			return string(out)
 		}),
 		"setBot": js.FuncOf(func(this js.Value, args []js.Value) any {
 			if len(args) > 0 {

@@ -50,3 +50,41 @@
 /* Footer: the unredacted export button. */
 .foot-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .sitefoot .btn { margin-top: 0; }
+
+/* Action banner shown while the engine's move is animated. */
+.actionbanner {
+  margin: 0 0 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border: 1.5px solid var(--line-strong);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--paper-2);
+  box-shadow: var(--shadow);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+.actionbanner[hidden] { display: none; }
+.actionbanner.MC { border-left-color: var(--mc); color: var(--mc); }
+.actionbanner.ED { border-left-color: var(--ed); color: var(--ed); }
+
+/* The moving-warrior dot that slides along a road. */
+.movdot {
+  position: absolute;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.22rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid var(--paper);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 1px 5px rgba(22, 36, 27, 0.5);
+  pointer-events: none;
+}
+.movdot.MC { background: var(--mc); }
+.movdot.ED { background: var(--ed); }

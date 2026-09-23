@@ -494,7 +494,7 @@ document.getElementById("exportrmn").onclick = () => {
 function newGame(human) {
   const botSide = human === "MC" ? "ED" : "MC";
   if (window.RootBot) RootBot.setBot(PROFILES[botSide], 0);
-  wasmCall("newGame", [human, Math.floor(Math.random() * 1e9), 0]);
+  runHuman("newGame", [human, Math.floor(Math.random() * 1e9), 0]);
 }
 
 // --- Players drawer (small viewports), matching the analysis page ---
@@ -510,34 +510,158 @@ if (drawerBackdrop) drawerBackdrop.onclick = () => setDrawer(false);
 window.addEventListener("keydown", (e) => { if (e.key === "Escape") setDrawer(false); });
 
 function doAction(id) {
-  if (thinking) return;
-  wasmCall("apply", [id]);
+  runHuman("apply", [id]);
 }
 
-// wasmCall yields a frame so the spinner paints before the blocking WASM call.
-function wasmCall(fn, args) {
-  if (!window.RootBot) return;
+// --- Bot turn playback (animated) ---
+const FACTION_NAME = { MC: "Marquise", ED: "Eyrie" };
+const reducedMotion = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// wasmSync runs a blocking WASM call after yielding a frame so the spinner
+// paints, and resolves with the raw JSON string.
+function wasmSync(fn, args) {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => setTimeout(() => {
+      let json = "{}";
+      try {
+        json = RootBot[fn].apply(null, args);
+      } catch (e) {
+        json = JSON.stringify({ error: String(e) });
+      }
+      resolve(json);
+    }, 0));
+  });
+}
+
+// runHuman applies the human's move, then plays and animates the bot's turn.
+async function runHuman(fn, args) {
+  if (thinking || !window.RootBot) return;
   thinking = true;
   const el = document.getElementById("thinking");
   el.hidden = false;
-  requestAnimationFrame(() => setTimeout(() => {
-    let json = "{}";
+  try {
+    let obj;
     try {
-      json = RootBot[fn].apply(null, args);
+      obj = JSON.parse(await wasmSync(fn, args));
     } catch (e) {
-      json = JSON.stringify({ error: String(e) });
+      obj = { error: String(e) };
     }
-    try {
-      game = JSON.parse(json);
-    } catch (e) {
-      game = { error: String(e) };
-    }
+    game = obj;
     viewer = game.you || viewer;
+    render();
+    if (game.error) { toast(game.error); return; }
+    await playBotTurn();
+  } finally {
     thinking = false;
     el.hidden = true;
+  }
+}
+
+async function playBotTurn() {
+  for (let i = 0; i < 500; i++) {
+    let obj;
+    try {
+      obj = JSON.parse(await wasmSync("botStep", []));
+    } catch (e) {
+      break;
+    }
+    if (!obj || obj.done || obj.error) {
+      if (obj && obj.error) toast(obj.error);
+      break;
+    }
+    await animateAction(game, obj.action, obj.state);
+    game = obj.state;
+    viewer = game.you || viewer;
+  }
+  hideBanner();
+  if (game) render();
+}
+
+function showBanner(text, faction) {
+  const el = document.getElementById("actionbanner");
+  if (!el) return;
+  el.textContent = text;
+  el.className = "actionbanner " + (faction || "");
+  el.hidden = false;
+}
+function hideBanner() {
+  const el = document.getElementById("actionbanner");
+  if (el) el.hidden = true;
+}
+
+function bannerText(a) {
+  if (a.kind === "move" && a.from && a.to && a.amount) {
+    const who = FACTION_NAME[a.faction] || a.faction;
+    return `${who} moving ${a.amount} warrior${a.amount > 1 ? "s" : ""} ${a.from} → ${a.to}`;
+  }
+  return (a.faction ? (FACTION_NAME[a.faction] || a.faction) + ": " : "") + (a.label || a.id);
+}
+
+// withSourceMoved copies the state with the moving warriors already removed from
+// the origin clearing (visual step 1: the source count drops).
+function withSourceMoved(pre, a) {
+  const g = Object.assign({}, pre);
+  g.clearings = Object.assign({}, pre.clearings);
+  const src = Object.assign({}, pre.clearings[a.from]);
+  src.Warriors = Object.assign({}, src.Warriors || {});
+  const left = (src.Warriors[a.faction] || 0) - a.amount;
+  if (left > 0) src.Warriors[a.faction] = left;
+  else delete src.Warriors[a.faction];
+  g.clearings[a.from] = src;
+  return g;
+}
+
+// animateAction plays one engine action: for a move, drop the source count,
+// slide a dot along the road, then raise the destination count.
+async function animateAction(pre, a, post) {
+  const isMove = a.kind === "move" && a.from && a.to && a.amount > 0;
+  if (isMove) {
+    game = withSourceMoved(pre, a); // step 1: origin count drops
     render();
-    if (game && game.error) toast(game.error);
-  }, 0));
+    showBanner(bannerText(a), a.faction);
+    await animateDot(a.from, a.to, a); // step 2: dot along the road
+    game = post; // step 3: destination count rises
+    render();
+    await sleep(reducedMotion() ? 0 : 120);
+    hideBanner();
+    return;
+  }
+  showBanner(bannerText(a), a.faction);
+  await sleep(reducedMotion() ? 0 : 260);
+  hideBanner();
+  game = post;
+  render();
+}
+
+function animateDot(from, to, a) {
+  return new Promise((resolve) => {
+    const board = document.getElementById("board");
+    const tableMode = window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+    if (!board || !POS[from] || !POS[to] || tableMode || reducedMotion()) {
+      resolve();
+      return;
+    }
+    const dot = document.createElement("div");
+    dot.className = "movdot " + a.faction;
+    dot.textContent = a.amount;
+    dot.style.left = POS[from][0] + "%";
+    dot.style.top = POS[from][1] + "%";
+    board.appendChild(dot);
+    const rect = board.getBoundingClientRect();
+    const dx = ((POS[to][0] - POS[from][0]) / 100) * rect.width;
+    const dy = ((POS[to][1] - POS[from][1]) / 100) * rect.height;
+    const anim = dot.animate(
+      [
+        { transform: "translate(-50%, -50%)" },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))` },
+      ],
+      { duration: 620, easing: "cubic-bezier(.33,.08,.36,1)", fill: "forwards" }
+    );
+    const done = () => { dot.remove(); resolve(); };
+    anim.onfinish = done;
+    anim.oncancel = done;
+  });
 }
 
 function render() {
