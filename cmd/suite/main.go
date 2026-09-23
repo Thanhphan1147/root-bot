@@ -23,6 +23,8 @@ func main() {
 	games := flag.Int("games", 40, "pairs per candidate (2*games games)")
 	sims := flag.Int("sims", 400, "MCTS simulations per move")
 	rollout := flag.Int("rollout", 0, "MCTS rollout depth")
+	worlds := flag.Int("worlds", 1, "MCTS determinized worlds per decision")
+	raw := flag.Bool("raw", false, "let MCTS see the true state (unfair, for contrast)")
 	seed := flag.Int64("seed", 1, "base seed")
 	refMC := flag.String("refmc", "greedy:material", "reference MC spec")
 	refED := flag.String("refed", "greedy:eyrie", "reference ED spec")
@@ -30,7 +32,7 @@ func main() {
 	maxSteps := flag.Int("max", 6000, "max actions per game")
 	flag.Parse()
 
-	ref := bot.MakePair(*refMC, *refED, *seed+5000, 0, 0)
+	ref := bot.MakePairWorlds(*refMC, *refED, *seed+5000, 0, 0, 1, false)
 	cands := []candidate{
 		{"shipped", "greedy:material", "greedy:eyrie"},
 		{"mcts", "mcts:material", "mcts:eyrie"},
@@ -53,7 +55,7 @@ func main() {
 		*refMC, *refED, *games, 2*(*games))
 	fmt.Printf("%-12s %8s %8s %8s %8s %6s\n", "candidate", "wins", "losses", "draws", "win%", "elo")
 	for i, c := range cands {
-		cand := bot.MakePair(c.mc, c.ed, *seed+int64(i)*17, *sims, *rollout)
+		cand := bot.MakePairWorlds(c.mc, c.ed, *seed+int64(i)*17, *sims, *rollout, *worlds, *raw)
 		res := arena.PlayPaired(cand, ref, *games, *seed+int64(i)*101, *maxSteps)
 		fmt.Printf("%-12s %8d %8d %8d %7.1f%% %+6.0f\n",
 			c.name, res.A, res.B, res.Draws,

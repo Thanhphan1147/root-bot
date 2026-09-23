@@ -114,15 +114,27 @@ func (c Composite) Choose(g *root.Game, f root.Faction) root.Action {
 
 // MakePair builds a per-side bot: mcSpec plays the Marquise, edSpec the Eyrie.
 func MakePair(mcSpec, edSpec string, seed int64, sims, rollout int) Composite {
+	return MakePairWorlds(mcSpec, edSpec, seed, sims, rollout, 1, false)
+}
+
+// MakePairWorlds is MakePair with explicit MCTS determinization controls.
+func MakePairWorlds(mcSpec, edSpec string, seed int64, sims, rollout, worlds int, raw bool) Composite {
 	return Composite{ByFaction: map[root.Faction]Bot{
-		root.MC: Make(mcSpec, seed, sims, rollout),
-		root.ED: Make(edSpec, seed+1, sims, rollout),
+		root.MC: MakeWorlds(mcSpec, seed, sims, rollout, worlds, raw),
+		root.ED: MakeWorlds(edSpec, seed+1, sims, rollout, worlds, raw),
 	}}
 }
 
 // Make builds a bot from a spec: "random", "passive", "greedy:<profile>", or
-// "mcts:<profile>".
+// "mcts:<profile>". MCTS searches one fair, determinized world by default.
 func Make(spec string, seed int64, sims, rollout int) Bot {
+	return MakeWorlds(spec, seed, sims, rollout, 1, false)
+}
+
+// MakeWorlds is Make with explicit MCTS determinization controls: worlds is the
+// number of sampled hidden-information worlds per decision, and raw searches the
+// true state (for benchmarking against the fair bot).
+func MakeWorlds(spec string, seed int64, sims, rollout, worlds int, raw bool) Bot {
 	rng := rand.New(rand.NewSource(seed))
 	switch {
 	case spec == "random":
@@ -135,7 +147,7 @@ func Make(spec string, seed int64, sims, rollout int) Bot {
 		}
 	case strings.HasPrefix(spec, "mcts:"):
 		if h, ok := eval.ProfileByName(strings.TrimPrefix(spec, "mcts:")); ok {
-			return search.MCTS{Eval: h, Rng: rng, Sims: sims, RolloutDepth: rollout}
+			return search.MCTS{Eval: h, Rng: rng, Sims: sims, RolloutDepth: rollout, Worlds: worlds, Raw: raw}
 		}
 	}
 	panic("unknown bot spec: " + spec)

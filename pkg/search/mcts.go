@@ -13,16 +13,28 @@ import (
 // MCTS is a best-first search over the game tree. Rollouts are capped at
 // RolloutDepth and finished with the evaluator, which keeps each simulation
 // cheap.
+//
+// Decisions are made over one or more determinized worlds: hidden cards are
+// resampled per world and the per-world action values are averaged. This keeps
+// the search from reading the opponent's hand. Set Worlds to 1 for the cheapest
+// fair search; raise it to smooth out chance and hidden information.
 type MCTS struct {
 	Eval         eval.Evaluator
 	Rng          *rand.Rand
-	Sims         int     // simulations per decision
+	Sims         int     // simulations per decision (split across worlds)
 	RolloutDepth int     // random plies before evaluating
 	C            float64 // UCT exploration constant
+	Worlds       int     // determinizations per decision; <=0 means 1
+	Raw          bool    // if true, skip determinization (search sees the truth)
 }
 
 // Name implements bot.Bot.
 func (m MCTS) Name() string { return "mcts:" + m.Eval.Name() }
+
+type aggStat struct {
+	visits int
+	value  float64
+}
 
 // Choose implements bot.Bot.
 func (m MCTS) Choose(g *root.Game, f root.Faction) root.Action {
@@ -37,25 +49,73 @@ func (m MCTS) Choose(g *root.Game, f root.Faction) root.Action {
 		r = rand.New(rand.NewSource(1))
 	}
 
-	rootNode := &mnode{state: g.CloneForSearch(), player: g.Actor()}
-	rootNode.actions = rootNode.state.LegalActions()
-	if len(rootNode.actions) == 0 {
-		return root.Action{}
+	worlds := m.Worlds
+	if worlds <= 0 {
+		worlds = 1
 	}
-	for i := 0; i < m.Sims; i++ {
-		m.simulate(rootNode, f)
+	per := m.Sims / worlds
+	if per <= 0 {
+		per = 1
 	}
 
-	best, bestVisits := -1, -1
-	for i, c := range rootNode.children {
-		if c.visits > bestVisits {
-			bestVisits, best = c.visits, i
+	agg := map[string]*aggStat{}
+	var order []string
+	for w := 0; w < worlds; w++ {
+		var st *root.Game
+		if m.Raw {
+			st = g.CloneForSearch()
+		} else {
+			st = Determinize(g, f, r)
+		}
+		if st == nil {
+			continue
+		}
+		rootNode := &mnode{state: st, player: st.Actor()}
+		rootNode.actions = st.LegalActions()
+		if len(rootNode.actions) == 0 {
+			continue
+		}
+		for i := 0; i < per; i++ {
+			m.simulate(rootNode, f, r)
+		}
+		for _, c := range rootNode.children {
+			id := c.action.ID
+			a := agg[id]
+			if a == nil {
+				a = &aggStat{}
+				agg[id] = a
+				order = append(order, id)
+			}
+			a.visits += c.visits
+			a.value += c.value
 		}
 	}
-	if best < 0 {
-		return rootNode.actions[0]
+
+	if len(order) == 0 {
+		acts := g.LegalActions()
+		if len(acts) == 0 {
+			return root.Action{}
+		}
+		return acts[0]
 	}
-	return rootNode.children[best].action
+
+	bestID, bestMean, bestVisits := "", math.Inf(-1), -1
+	for _, id := range order {
+		a := agg[id]
+		if a.visits == 0 {
+			continue
+		}
+		mean := a.value / float64(a.visits)
+		if mean > bestMean || (mean == bestMean && a.visits > bestVisits) {
+			bestMean, bestVisits, bestID = mean, a.visits, id
+		}
+	}
+	for _, a := range g.LegalActions() {
+		if a.ID == bestID {
+			return a
+		}
+	}
+	return root.Action{}
 }
 
 type mnode struct {
@@ -69,7 +129,7 @@ type mnode struct {
 	next     int
 }
 
-func (m MCTS) simulate(rootNode *mnode, rootPlayer root.Faction) {
+func (m MCTS) simulate(rootNode *mnode, rootPlayer root.Faction, r *rand.Rand) {
 	n := rootNode
 	path := []*mnode{n}
 	for {
@@ -96,7 +156,7 @@ func (m MCTS) simulate(rootNode *mnode, rootPlayer root.Faction) {
 		n = next
 		path = append(path, n)
 	}
-	v := m.rollout(n.state, rootPlayer)
+	v := m.rollout(n.state, rootPlayer, r)
 	for _, p := range path {
 		p.visits++
 		p.value += v
@@ -125,7 +185,7 @@ func (m MCTS) selectChild(n *mnode, rootPlayer root.Faction) *mnode {
 }
 
 // rollout plays random plies from a copy of the position, then evaluates.
-func (m MCTS) rollout(g *root.Game, rootPlayer root.Faction) float64 {
+func (m MCTS) rollout(g *root.Game, rootPlayer root.Faction, r *rand.Rand) float64 {
 	st := g.CloneForSearch()
 	depth := m.RolloutDepth
 	if depth < 0 {
@@ -139,16 +199,9 @@ func (m MCTS) rollout(g *root.Game, rootPlayer root.Faction) float64 {
 		if len(acts) == 0 {
 			break
 		}
-		if err := st.Apply(acts[m.rng().Intn(len(acts))]); err != nil {
+		if err := st.Apply(acts[r.Intn(len(acts))]); err != nil {
 			break
 		}
 	}
 	return m.Eval.Eval(st, rootPlayer)
-}
-
-func (m MCTS) rng() *rand.Rand {
-	if m.Rng != nil {
-		return m.Rng
-	}
-	return rand.New(rand.NewSource(1))
 }

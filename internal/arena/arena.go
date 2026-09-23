@@ -38,7 +38,7 @@ func (r Result) WinRateSE() float64 {
 		return 0
 	}
 	p := float64(r.A) / float64(n)
-	return math.Sqrt(p*(1-p)/float64(n))
+	return math.Sqrt(p * (1 - p) / float64(n))
 }
 
 // EloA estimates A's Elo advantage from its win rate.
