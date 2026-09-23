@@ -324,6 +324,9 @@ function hideBanner() {
 
 const BATTLE_KINDS = ["battle", "decree-battle", "vb-battle-ally", "vb-strike"];
 const BUILD_KINDS = ["mc-build", "decree-build", "setup-mc-build"];
+// Every action that moves warriors from one clearing to another (the Eyrie's
+// Decree Move is "decree-move", not "move").
+const MOVE_KINDS = ["move", "decree-move", "wa-move", "organize", "vb-move"];
 
 const GLYPH = {
   sword: '<svg class="gi" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2v9M6 11h8M10 11v7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
@@ -385,7 +388,7 @@ function buildCard(a) {
 
 function bannerText(a) {
   const who = FACTION_NAME[a.faction] || a.faction;
-  if (a.kind === "move" && a.from && a.to && a.amount) {
+  if (MOVE_KINDS.includes(a.kind) && a.from && a.to && a.amount) {
     return `${who} moving ${a.amount} warrior${a.amount > 1 ? "s" : ""} ${a.from} → ${a.to}`;
   }
   if (BATTLE_KINDS.includes(a.kind) && a.clearing) {
@@ -416,7 +419,7 @@ function withSourceMoved(pre, a) {
 // battles and builds flash the clearing with a notification card, then the
 // resulting position is committed. The page's render() draws `game`.
 async function animateAction(pre, a, post) {
-  const isMove = a.kind === "move" && a.from && a.to && a.amount > 0;
+  const isMove = MOVE_KINDS.includes(a.kind) && a.from && a.to && a.amount > 0;
   if (isMove) {
     game = withSourceMoved(pre, a);
     render();
