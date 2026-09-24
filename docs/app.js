@@ -444,12 +444,15 @@ let game = null;
 let viewer = "";
 let thinking = false;
 
-// The engine plays whichever faction you do not. Both sides run the fair,
-// determinized MCTS (it resamples your hidden cards, so it does not cheat).
+// The engine plays every faction you do not. In 1v1 both sides run the fair,
+// determinized MCTS; in the full four-player game the two new factions use a
+// 1-ply greedy policy (handy for validating the notation).
 const SIMS = 300;
-const PROFILES = { MC: "mcts:material", ED: "mcts:eyrie" };
+const PROFILES_1V1 = { MC: "mcts:material", ED: "mcts:eyrie" };
+const PROFILES_4P = { MC: "greedy:material", ED: "greedy:eyrie", WA: "greedy:material", VB: "greedy:material" };
 
 let chosenSide = "MC";
+let chosenMode = "1v1";
 
 function showStart() {
   document.getElementById("start").hidden = false;
@@ -469,14 +472,41 @@ function engineError(msg) {
   toast(msg);
 }
 
-for (const b of document.querySelectorAll("#sidepick button")) {
+function syncStart() {
+  for (const b of document.querySelectorAll("#modepick button")) {
+    b.classList.toggle("on", b.dataset.mode === chosenMode);
+  }
+  for (const b of document.querySelectorAll("#sidepick button")) {
+    const show = b.dataset.mode === chosenMode;
+    b.hidden = !show;
+    b.classList.toggle("on", show && b.dataset.side === chosenSide);
+  }
+}
+for (const b of document.querySelectorAll("#modepick button")) {
   b.onclick = () => {
-    chosenSide = b.dataset.side;
-    for (const x of document.querySelectorAll("#sidepick button")) x.classList.toggle("on", x === b);
+    chosenMode = b.dataset.mode;
+    const first = document.querySelector(`#sidepick button[data-mode="${chosenMode}"]`);
+    if (first) chosenSide = first.dataset.side;
+    syncStart();
   };
 }
-document.getElementById("startgame").onclick = () => { hideStart(); newGame(chosenSide); };
+for (const b of document.querySelectorAll("#sidepick button")) {
+  b.onclick = () => { chosenSide = b.dataset.side; syncStart(); };
+}
+syncStart();
+document.getElementById("startgame").onclick = () => { hideStart(); newGame(chosenMode, chosenSide); };
 document.getElementById("newgame").onclick = () => { if (!thinking) showStart(); };
+
+// Take back the player's last action (and any CPU replies after it).
+document.getElementById("undo").onclick = () => {
+  if (thinking || !window.RootBot || !game) return;
+  let obj;
+  try { obj = JSON.parse(RootBot.undo()); } catch (e) { obj = { error: String(e) }; }
+  if (obj.error) { toast(obj.error); return; }
+  game = obj;
+  viewer = game.you || viewer;
+  render();
+};
 
 // Export the engine's true, unredacted RMN log. A direct download is unreliable
 // on mobile browsers, so we show the text in a dialog with Copy (and Share /
@@ -544,10 +574,11 @@ exportShare.onclick = async () => {
   } catch (e) { /* user cancelled */ }
 };
 
-function newGame(human) {
-  const botSide = human === "MC" ? "ED" : "MC";
-  if (window.RootBot) RootBot.setBot(PROFILES[botSide], SIMS);
-  runHuman("newGame", [human, Math.floor(Math.random() * 1e9), 0]);
+function newGame(mode, human) {
+  if (window.RootBot) {
+    RootBot.setBots(JSON.stringify(mode === "4p" ? PROFILES_4P : PROFILES_1V1), SIMS);
+  }
+  runHuman("newGame", [human, Math.floor(Math.random() * 1e9), 0, mode]);
 }
 
 // --- Players drawer (small viewports), matching the analysis page ---

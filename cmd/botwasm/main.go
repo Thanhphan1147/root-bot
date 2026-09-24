@@ -1,8 +1,9 @@
 //go:build js && wasm
 
-// Command botwasm exposes a 1v1 ROOT game against the engine to the browser as
+// Command botwasm exposes a ROOT game against the engine to the browser as
 // WebAssembly. The game state lives in the browser, so the demo needs no server
-// and can be hosted as a static site (GitHub Pages).
+// and can be hosted as a static site (GitHub Pages). It runs 1v1 (Marquise vs
+// Eyrie) or the full four-player base game.
 package main
 
 import (
@@ -18,32 +19,83 @@ import (
 
 var (
 	current      *root.Game
-	humanFaction       = root.MC
-	botFaction         = root.ED
-	botSpec            = "mcts:full"
-	botSims            = 200
-	botRollout         = 0
-	botSeed      int64 = 1
-	gameSeed     int
+	humanFaction = root.MC
+	cpuFactions  = map[root.Faction]bool{}
+	botSpecs     = map[root.Faction]string{
+		root.MC: "mcts:material",
+		root.ED: "mcts:eyrie",
+		root.WA: "greedy:material",
+		root.VB: "greedy:material",
+	}
+	botSims          = 200
+	botSeed    int64 = 1
+	gameSeed   int
+	history    []*root.Game
+	maxHistory = 240
 )
 
-func newGame(human string, seed, sims int) {
+func firstSentinel(order []root.Faction) root.Faction {
+	if len(order) > 0 {
+		return order[0]
+	}
+	return root.MC
+}
+
+func inOrder(order []root.Faction, f root.Faction) bool {
+	for _, x := range order {
+		if x == f {
+			return true
+		}
+	}
+	return false
+}
+
+// newGame starts a fresh game. mode is "1v1" (MC vs ED) or "4p" (all four
+// base-game factions); human is the faction the player controls.
+func newGame(human string, seed, sims int, mode string) {
+	var order []root.Faction
+	if mode == "4p" {
+		order = []root.Faction{root.MC, root.ED, root.WA, root.VB}
+		// Full-game testing runs a 1-ply greedy bot for every faction.
+		botSpecs[root.MC] = "greedy:material"
+		botSpecs[root.ED] = "greedy:eyrie"
+		botSpecs[root.WA] = "greedy:material"
+		botSpecs[root.VB] = "greedy:material"
+	} else {
+		order = []root.Faction{root.MC, root.ED}
+		botSpecs[root.MC] = "mcts:material"
+		botSpecs[root.ED] = "mcts:eyrie"
+	}
+
 	h := root.Faction(human)
-	if h != root.MC && h != root.ED {
-		h = root.MC
+	if !inOrder(order, h) {
+		h = firstSentinel(order)
 	}
-	b := root.ED
-	if h == root.ED {
-		b = root.MC
+	humanFaction = h
+	cpuFactions = map[root.Faction]bool{}
+	for _, f := range order {
+		if f != h {
+			cpuFactions[f] = true
+		}
 	}
-	humanFaction, botFaction = h, b
 	if sims > 0 {
 		botSims = sims
 	}
-	current = root.NewGame([]root.Faction{root.MC, root.ED}, root.MC, uint64(seed))
+	current = root.NewGame(order, firstSentinel(order), uint64(seed))
 	root.BeginSetup(current)
 	botSeed = int64(seed) + 1
 	gameSeed = seed
+	history = nil
+}
+
+func pushHistory() {
+	if current == nil {
+		return
+	}
+	history = append(history, current.Clone())
+	if len(history) > maxHistory {
+		history = history[1:]
+	}
 }
 
 // exportRMN returns the full, unredacted RMN for the current game, including
@@ -69,9 +121,13 @@ func exportRMN() string {
 	return b.String()
 }
 
-func makeBot() bot.Bot {
+func makeBotFor(f root.Faction) (b bot.Bot) {
 	defer func() { recover() }()
-	return bot.Make(botSpec, botSeed, botSims, botRollout)
+	spec := botSpecs[f]
+	if spec == "" {
+		spec = "greedy:material"
+	}
+	return bot.Make(spec, botSeed, botSims, 0)
 }
 
 // snapshotJSON returns the client view. Redaction (hiding the engine's hand,
@@ -83,8 +139,8 @@ func snapshotJSON() string {
 	}
 	snap := root.Redact(current, string(humanFaction))
 	snap["you"] = string(humanFaction)
-	snap["bot"] = string(botFaction)
 	snap["humanActor"] = string(humanFaction) == string(current.Actor())
+	snap["canUndo"] = len(history) > 0
 	b, err := json.Marshal(snap)
 	if err != nil {
 		return "{}"
@@ -100,7 +156,7 @@ func withError(msg string) string {
 func main() {
 	api := map[string]any{
 		"newGame": js.FuncOf(func(this js.Value, args []js.Value) any {
-			human := "MC"
+			human, mode := "MC", "1v1"
 			seed, sims := 1, 0
 			if len(args) > 0 {
 				human = args[0].String()
@@ -111,7 +167,10 @@ func main() {
 			if len(args) > 2 {
 				sims = args[2].Int()
 			}
-			newGame(human, seed, sims)
+			if len(args) > 3 {
+				mode = args[3].String()
+			}
+			newGame(human, seed, sims, mode)
 			return snapshotJSON()
 		}),
 		"apply": js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -119,7 +178,9 @@ func main() {
 				return withError("no game")
 			}
 			id := args[0].String()
+			pushHistory()
 			if err := current.Apply(root.Action{ID: id}); err != nil {
+				history = history[:len(history)-1] // discard the failed checkpoint
 				out := map[string]any{"error": err.Error()}
 				var snap map[string]any
 				_ = json.Unmarshal([]byte(snapshotJSON()), &snap)
@@ -131,16 +192,33 @@ func main() {
 			}
 			return snapshotJSON()
 		}),
+		// undo restores the state before the player's last action (and any CPU
+		// replies that followed it).
+		"undo": js.FuncOf(func(this js.Value, args []js.Value) any {
+			if current == nil {
+				return withError("no game")
+			}
+			if len(history) == 0 {
+				return withError("nothing to undo")
+			}
+			current = history[len(history)-1]
+			history = history[:len(history)-1]
+			return snapshotJSON()
+		}),
 		// botStep plays exactly one engine action and returns it with the
-		// resulting state, so the client can animate the bot's turn.
+		// resulting state, so the client can animate the CPU's turn.
 		"botStep": js.FuncOf(func(this js.Value, args []js.Value) any {
-			if current == nil || len(current.Winner) > 0 || current.Actor() != botFaction {
+			if current == nil || len(current.Winner) > 0 {
+				return `{"done":true}`
+			}
+			actor := current.Actor()
+			if actor == humanFaction || !cpuFactions[actor] {
 				return `{"done":true}`
 			}
 			if len(current.LegalActions()) == 0 {
 				return `{"done":true}`
 			}
-			mv := makeBot().Choose(current, botFaction)
+			mv := makeBotFor(actor).Choose(current, actor)
 			if mv.ID == "" {
 				return `{"done":true}`
 			}
@@ -154,14 +232,20 @@ func main() {
 			out, _ := json.Marshal(map[string]any{"action": act, "state": st})
 			return string(out)
 		}),
-		"setBot": js.FuncOf(func(this js.Value, args []js.Value) any {
+		// setBots takes a JSON object of faction -> spec (e.g. {"WA":"greedy:x"}).
+		"setBots": js.FuncOf(func(this js.Value, args []js.Value) any {
 			if len(args) > 0 {
-				botSpec = args[0].String()
+				var specs map[string]string
+				if err := json.Unmarshal([]byte(args[0].String()), &specs); err == nil {
+					for k, v := range specs {
+						botSpecs[root.Faction(k)] = v
+					}
+				}
 			}
-			if len(args) > 1 {
+			if len(args) > 1 && args[1].Int() > 0 {
 				botSims = args[1].Int()
 			}
-			return fmt.Sprintf("%s/%d", botSpec, botSims)
+			return "ok"
 		}),
 		"snapshot": js.FuncOf(func(this js.Value, args []js.Value) any {
 			return snapshotJSON()

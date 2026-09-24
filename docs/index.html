@@ -20,6 +20,7 @@
     <div class="turnbar" id="turnbar" aria-live="polite"></div>
     <div class="header-controls">
       <button id="toggleplayers" class="btn ghost" type="button" aria-controls="players" aria-expanded="false">Players</button>
+      <button id="undo" class="btn ghost" type="button" title="Take back your last action">Undo</button>
       <button id="newgame" class="btn" type="button">New game</button>
     </div>
   </div>
@@ -64,15 +65,22 @@
   </span>
 </footer>
 
-<!-- Start: choose a side -->
+<!-- Start: choose a mode and side -->
 <div class="overlay" id="start" hidden>
   <div class="card">
     <h2>Play ROOT against the engine</h2>
-    <p>Pick a side — the engine plays the other with its tuned bot.</p>
-    <label>Your side</label>
+    <p>Pick a mode and your faction — the engine plays everyone else.</p>
+    <label>Mode</label>
+    <div class="sidepick" id="modepick">
+      <button type="button" data-mode="1v1" class="on">1v1 · Marquise vs Eyrie</button>
+      <button type="button" data-mode="4p">Full base game · 4 players</button>
+    </div>
+    <label>Your faction</label>
     <div class="sidepick" id="sidepick">
-      <button type="button" data-side="MC" class="MC on">Marquise de Cat</button>
-      <button type="button" data-side="ED" class="ED">Eyrie Dynasties</button>
+      <button type="button" data-side="MC" data-mode="1v1" class="MC on">Marquise de Cat</button>
+      <button type="button" data-side="ED" data-mode="1v1" class="ED">Eyrie Dynasties</button>
+      <button type="button" data-side="WA" data-mode="4p" class="WA" hidden>Woodland Alliance</button>
+      <button type="button" data-side="VB" data-mode="4p" class="VB" hidden>Vagabond</button>
     </div>
     <button id="startgame" class="btn" type="button" disabled>Loading engine…</button>
   </div>

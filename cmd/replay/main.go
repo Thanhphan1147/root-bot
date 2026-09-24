@@ -4,13 +4,13 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/Thanhphan1147/root-bot/pkg/replay"
 	"github.com/Thanhphan1147/root-mn/pkg/root"
 )
 
@@ -27,7 +27,12 @@ func main() {
 		os.Exit(2)
 	}
 
-	lines, seed, err := readLog(*file)
+	text, err := os.ReadFile(*file)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	seed, order, first, lines, err := replay.Parse(string(text))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -35,9 +40,9 @@ func main() {
 	if *seedFlag != 0 {
 		seed = *seedFlag
 	}
-	fmt.Printf("seed=%d events=%d\n", seed, len(lines))
+	fmt.Printf("seed=%d factions=%v events=%d\n", seed, order, len(lines))
 
-	g := root.NewGame([]root.Faction{root.MC, root.ED}, root.MC, uint64(seed))
+	g := root.NewGame(order, first, uint64(seed))
 	root.BeginSetup(g)
 
 	ambiguous := 0
@@ -58,6 +63,11 @@ func main() {
 		if matches > 1 {
 			ambiguous++
 			fmt.Printf("AMBIGUOUS event %d (%d matches): %s\n", i, matches, line)
+			for _, la := range g.LegalActions() {
+				if rmnOf(g, la) == line {
+					fmt.Printf("    %s\n", la.ID)
+				}
+			}
 		}
 		if err := g.Apply(a); err != nil {
 			fmt.Printf("apply failed at %q: %v\n", line, err)
@@ -70,36 +80,13 @@ func main() {
 	} else {
 		fmt.Printf("\nreplayed all %d events; %d ambiguous lines\n", len(lines), ambiguous)
 	}
-	fmt.Printf("round %d.%s, actor=%s, MC vp=%d ED vp=%d, winner=%v\n",
-		g.Round, g.Phase, g.Actor(), g.Players[root.MC].VP, g.Players[root.ED].VP, g.Winner)
+	fmt.Printf("round %d.%s actor=%s winner=%v\n", g.Round, g.Phase, g.Actor(), g.Winner)
+	for _, f := range g.Order {
+		fmt.Printf("  %s vp=%d\n", f, g.Players[f].VP)
+	}
 	if *dump {
 		dumpState(g)
 	}
-}
-
-func readLog(path string) ([]string, int64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer f.Close()
-	var lines []string
-	var seed int64
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1<<20), 1<<20)
-	for sc.Scan() {
-		t := sc.Text()
-		if strings.HasPrefix(t, "%Game demo-") {
-			if n, err := strconv.ParseInt(strings.TrimPrefix(t, "%Game demo-"), 10, 64); err == nil {
-				seed = n
-			}
-		}
-		if strings.HasPrefix(t, "%") || strings.TrimSpace(t) == "" {
-			continue
-		}
-		lines = append(lines, t)
-	}
-	return lines, seed, sc.Err()
 }
 
 func lineSeq(line string) int {
