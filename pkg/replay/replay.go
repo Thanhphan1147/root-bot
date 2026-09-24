@@ -100,11 +100,15 @@ func Parse(text string) (seed int64, order []root.Faction, first root.Faction, b
 
 // match returns the legal action whose RMN line equals line, and how many legal
 // actions produced that exact line (more than one means the log is ambiguous).
+// Actions are visited in a stable (ID-sorted) order so matching does not depend
+// on Go's map iteration order.
 func match(g *root.Game, line string) (root.Action, int) {
 	base := len(g.RMNLog)
+	legal := g.LegalActions()
+	sort.Slice(legal, func(i, j int) bool { return legal[i].ID < legal[j].ID })
 	var found root.Action
 	n := 0
-	for _, a := range g.LegalActions() {
+	for _, a := range legal {
 		c := g.Clone()
 		if err := c.Apply(a); err != nil {
 			continue

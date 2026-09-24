@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,7 @@ func main() {
 	stop := flag.Int("stop", 0, "stop after this RMN seq (0 = end)")
 	dump := flag.Bool("dump", true, "dump state + legal actions at the stop point")
 	leader := flag.String("leader", "", "force the ED setup leader (disambiguates the log)")
+	vbdump := flag.Bool("vbdump", false, "print the Vagabond's items at each of its Birdsongs")
 	flag.Parse()
 	forcedLeader = *leader
 	if *file == "" {
@@ -73,6 +75,9 @@ func main() {
 			fmt.Printf("apply failed at %q: %v\n", line, err)
 			return
 		}
+		if *vbdump && (g.Current == root.VB || a.Faction == root.VB) {
+			fmt.Printf("  [%2d] %-58s cur=%s.%s | %s\n", i, line, g.Current, g.Phase, vbItems(g))
+		}
 	}
 
 	if ambiguous == 0 {
@@ -103,9 +108,11 @@ func lineSeq(line string) int {
 // under-specified).
 func matchLine(g *root.Game, line string) (root.Action, int, bool) {
 	base := len(g.RMNLog)
+	legal := g.LegalActions()
+	sort.Slice(legal, func(i, j int) bool { return legal[i].ID < legal[j].ID })
 	var found root.Action
 	n := 0
-	for _, a := range g.LegalActions() {
+	for _, a := range legal {
 		if forcedLeader != "" && a.Kind == "setup-ed-leader" && a.Leader != forcedLeader {
 			continue
 		}
@@ -175,4 +182,29 @@ func countType(g *root.Game, f root.Faction, typ string) int {
 		}
 	}
 	return n
+}
+
+func vbItems(g *root.Game) string {
+	p := g.Players[root.VB]
+	if p == nil {
+		return ""
+	}
+	names := make([]string, 0, len(p.Items))
+	for id := range p.Items {
+		names = append(names, id)
+	}
+	sort.Strings(names)
+	var b strings.Builder
+	for _, id := range names {
+		it := p.Items[id]
+		state := "up"
+		if !it.FaceUp {
+			state = "down"
+		}
+		if it.Damaged {
+			state += ",dmg"
+		}
+		fmt.Fprintf(&b, "%s:%s/%s  ", it.Type, it.Zone, state)
+	}
+	return b.String()
 }
