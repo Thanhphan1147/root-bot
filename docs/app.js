@@ -554,6 +554,12 @@ document.getElementById("undo").onclick = () => {
   render();
 };
 
+// How to play: shows the human's faction.
+const howtoFaction = () => (game && game.you) || chosenSide;
+document.getElementById("togglehowto").onclick = () => howtoToggle(howtoFaction());
+document.getElementById("howtoclose").onclick = howtoClose;
+document.getElementById("howtobackdrop").onclick = howtoClose;
+
 // Export the engine's true, unredacted RMN log. A direct download is unreliable
 // on mobile browsers, so we show the text in a dialog with Copy (and Share /
 // Download where supported).
@@ -637,7 +643,7 @@ function setDrawer(open) {
 }
 if (playersToggle) playersToggle.onclick = () => setDrawer(!document.body.classList.contains("players-open"));
 if (drawerBackdrop) drawerBackdrop.onclick = () => setDrawer(false);
-window.addEventListener("keydown", (e) => { if (e.key === "Escape") setDrawer(false); });
+window.addEventListener("keydown", (e) => { if (e.key === "Escape") { setDrawer(false); howtoClose(); } });
 
 function doAction(id) {
   runHuman("apply", [id]);
@@ -926,6 +932,7 @@ function render() {
   renderActions(g);
   renderLog(g);
   renderRMN(g);
+  if (howtoIsOpen()) howtoRender(howtoFaction());
 }
 
 // loadEngineBytes prefers a pre-gzipped bundle (GitHub Pages serves the raw

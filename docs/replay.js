@@ -18,6 +18,7 @@ function render() {
   renderBoard(game);
   renderLog(game);
   updateLabel();
+  if (howtoIsOpen()) howtoRender(activeFaction(game));
 }
 
 function updateLabel() {
@@ -171,6 +172,9 @@ $("next").onclick = () => { pause(); setIdx(idx + 1); };
 $("timeline").oninput = (e) => { pause(); setIdx(+e.target.value); };
 $("speed").onchange = (e) => setSpeed(e.target.value);
 $("openpaste").onclick = showPaste;
+$("togglehowto").onclick = () => howtoToggle(activeFaction(game || {}));
+$("howtoclose").onclick = howtoClose;
+$("howtobackdrop").onclick = howtoClose;
 $("loadrmn").onclick = () => loadRMN($("rmntext").value);
 $("rmnfile").onchange = (e) => {
   const f = e.target.files && e.target.files[0];
@@ -181,6 +185,7 @@ $("rmnfile").onchange = (e) => {
 };
 window.addEventListener("keydown", (e) => {
   if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (e.key === "Escape") { howtoClose(); return; }
   if (e.key === " ") { e.preventDefault(); if (playing) pause(); else play(); }
   if (e.key === "ArrowLeft") { pause(); setIdx(idx - 1); }
   if (e.key === "ArrowRight") { pause(); setIdx(idx + 1); }

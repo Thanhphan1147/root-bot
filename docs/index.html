@@ -20,6 +20,7 @@
     <div class="turnbar" id="turnbar" aria-live="polite"></div>
     <div class="header-controls">
       <button id="toggleplayers" class="btn ghost" type="button" aria-controls="players" aria-expanded="false">Players</button>
+      <button id="togglehowto" class="btn ghost" type="button" aria-controls="howto" aria-expanded="false">How to play</button>
       <button id="undo" class="btn ghost" type="button" title="Take back your last action">Undo</button>
       <button id="newgame" class="btn" type="button">New game</button>
     </div>
@@ -28,7 +29,16 @@
 
 <div class="turnbanner" id="turnbanner" hidden aria-live="polite"></div>
 <div class="drawer-backdrop" id="drawerbackdrop" hidden></div>
+<div class="drawer-backdrop" id="howtobackdrop" hidden></div>
 <div class="thinking" id="thinking" hidden>engine is thinking…</div>
+
+<aside class="howto" id="howto" aria-label="How to play">
+  <div class="howto-head">
+    <h2 id="howtotitle">How to play</h2>
+    <button id="howtoclose" class="btn ghost" type="button">Close</button>
+  </div>
+  <div class="howto-body" id="howtobody"></div>
+</aside>
 
 <main class="bench">
   <aside class="players" id="players" aria-label="Players"></aside>
@@ -103,6 +113,7 @@
 </div>
 
 <script src="wasm_exec.js"></script>
+<script src="howto.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

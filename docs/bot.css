@@ -209,3 +209,36 @@
 .quest .qname { font-weight: 700; color: var(--ink); }
 .quest .qreq { color: var(--ink-soft); }
 .quest .qrew { margin-left: auto; font-family: var(--mono); color: var(--ink-soft); }
+
+/* "How to play" sidebar: hidden by default on all viewports. */
+.howto {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 320;
+  width: min(420px, 92vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-2);
+  border-left: 2px solid var(--line-strong);
+  box-shadow: -4px 0 16px rgba(22, 36, 27, 0.18);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform 0.18s ease, visibility 0.18s;
+}
+.howto.open { transform: translateX(0); visibility: visible; }
+.howto-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 2px solid var(--line-strong);
+}
+.howto-head h2 { margin: 0; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.howto-body { overflow: auto; padding: 0.7rem 0.9rem 1.2rem; }
+.howto-goal { margin: 0 0 0.6rem; font-size: 0.68rem; color: var(--ink); }
+.howto-sec { margin: 0 0 0.7rem; }
+.howto-sec h3 { margin: 0 0 0.2rem; font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
+.howto-sec p { margin: 0; font-size: 0.68rem; line-height: 1.45; color: var(--ink); }
