@@ -477,7 +477,8 @@ function syncStart() {
     b.classList.toggle("on", b.dataset.mode === chosenMode);
   }
   for (const b of document.querySelectorAll("#sidepick button")) {
-    const show = b.dataset.mode === chosenMode;
+    // Marquise/Eyrie are playable in both modes; WA/VB only in the full game.
+    const show = !b.dataset.mode || b.dataset.mode === chosenMode;
     b.hidden = !show;
     b.classList.toggle("on", show && b.dataset.side === chosenSide);
   }
@@ -485,8 +486,9 @@ function syncStart() {
 for (const b of document.querySelectorAll("#modepick button")) {
   b.onclick = () => {
     chosenMode = b.dataset.mode;
-    const first = document.querySelector(`#sidepick button[data-mode="${chosenMode}"]`);
-    if (first) chosenSide = first.dataset.side;
+    const visible = [...document.querySelectorAll("#sidepick button")]
+      .filter((x) => !x.dataset.mode || x.dataset.mode === chosenMode);
+    if (!visible.some((x) => x.dataset.side === chosenSide)) chosenSide = visible[0].dataset.side;
     syncStart();
   };
 }
