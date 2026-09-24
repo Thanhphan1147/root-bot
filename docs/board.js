@@ -125,6 +125,7 @@ function renderPlayers(g) {
       `<div class="phead"><span class="f">${f}${game.you === f ? " · you" : ""}</span><span class="vp">${p.VP} VP</span></div>` +
       `<div class="pbody">${extra}` +
       `<div class="row"><span>crafted</span><span>${(p.Crafted || []).map(cardLabel).join(" ") || "—"}</span></div>` +
+      `<div class="row"><span>crafted items</span><span>${craftedItems(p)}</span></div>` +
       `</div>`;
     div.append(renderHand(p));
     el.append(div);
@@ -183,6 +184,13 @@ function cardLabel(id) {
   if (id === "VIZIER") return "Viz";
   if (/^[FRMB]\d\d$/.test(id)) return id;
   return id;
+}
+
+// craftedItems lists the item types a faction has crafted — the pool the
+// Vagabond can take from with Aid.
+function craftedItems(p) {
+  const items = (p.CraftedItems || []).filter(Boolean);
+  return items.length ? items.join(" ") : "—";
 }
 
 function renderBoard(g) {
