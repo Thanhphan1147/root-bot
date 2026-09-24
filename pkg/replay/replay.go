@@ -123,6 +123,13 @@ func match(g *root.Game, line string) (root.Action, int) {
 	return found, n
 }
 
+// isSystemSetupLine reports whether a logged line is a SYS setup directive
+// (e.g. assign-ruins) rather than a player action.
+func isSystemSetupLine(line string) bool {
+	f := strings.Fields(line)
+	return len(f) >= 4 && f[2] == "SYS"
+}
+
 // leanState is a snapshot of a deep copy of the game: root.Snapshot returns the
 // live Clearings/Players by reference, so without the clone every step would
 // encode the final board. It drops the RMN (which grows every step and would
@@ -155,6 +162,11 @@ func Run(text string) (*Result, error) {
 	for i, line := range body {
 		a, n := match(g, line)
 		if n == 0 {
+			// SYS setup lines (assign-ruins) are already applied by BeginSetup
+			// from the seed; consume them.
+			if isSystemSetupLine(line) {
+				continue
+			}
 			res.Failure = fmt.Sprintf("event %d could not be replayed: %s", i+1, line)
 			res.Winner = g.Winner
 			return res, nil

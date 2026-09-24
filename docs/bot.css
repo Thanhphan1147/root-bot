@@ -160,3 +160,15 @@
 }
 .exportrow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
 .err { min-height: 1rem; margin-top: 0.4rem; font-family: var(--mono); font-size: 0.68rem; color: var(--crimson); }
+
+/* Vagabond character ability, shown in the player panel. */
+.vbability {
+  margin: 0.2rem 0 0.35rem;
+  padding: 0.28rem 0.4rem;
+  border-left: 3px solid var(--vb);
+  background: var(--paper);
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.vbability b { color: var(--vb); }

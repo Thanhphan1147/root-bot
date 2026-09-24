@@ -26,6 +26,14 @@ const EDGES = [
 
 const FACTION_NAME = { MC: "Marquise", ED: "Eyrie" };
 
+// Vagabond characters and their special action, shown in the player panel so the
+// ability is always visible.
+const VB_CHARACTERS = {
+  thief:  { name: "Thief",  ability: "Steal",     text: "Exhaust a torch to take a random card from any player in your clearing." },
+  tinker: { name: "Tinker", ability: "Day Labor", text: "Exhaust a torch to take a card from the discard pile whose suit matches your clearing (or a bird)." },
+  ranger: { name: "Ranger", ability: "Hideout",   text: "Exhaust a torch to repair 3 items, then immediately end Daylight and begin Evening." },
+};
+
 function toast(msg) {
   const el = document.getElementById("pendhint");
   if (el) { el.textContent = msg; setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 4000); }
@@ -104,7 +112,9 @@ function renderPlayers(g) {
       extra = `<div class="row"><span>officers</span><span>${p.Officers}</span></div>` +
         `<div class="row"><span>supporters</span><span class="cards">${(p.Supporters || []).map(cardLabel).join(" ")}</span></div>`;
     } else if (f === "VB") {
-      extra = `<div class="row"><span>character</span><span>${p.Character}</span></div>` +
+      const ch = VB_CHARACTERS[p.Character];
+      extra = `<div class="row"><span>character</span><span>${ch ? ch.name : p.Character}</span></div>` +
+        (ch ? `<div class="vbability"><b>${ch.ability}:</b> ${ch.text}</div>` : "") +
         `<div class="row"><span>at</span><span>${p.Pawn}</span></div>` +
         `<div class="row"><span>items</span><span class="cards">${itemList(p)}</span></div>`;
       const rel = p.Relationships || {};
@@ -241,7 +251,7 @@ function renderBoard(g) {
     for (let i = 0; i < used; i++) pips += '<span class="slot used"></span>';
     for (let i = 0; i < hasRuin; i++) pips += '<span class="slot ruinslot"></span>';
     for (let i = 0; i < free; i++) pips += '<span class="slot free"></span>';
-    const ruinLabel = c.Ruin ? `<span class="ruin">ruin ${(c.RuinItem || "").replace(/^i\./, "")}</span>` : "";
+    const ruinLabel = c.Ruin ? `<span class="ruin">ruin</span>` : "";
     const slotRow = (slots || hasRuin)
       ? `<div class="slots" title="building slots: ${free} free of ${slots}"><span class="slotpips">${pips}</span>` +
         `<span class="slotnum">${free}/${slots}</span>${ruinLabel}</div>`

@@ -55,6 +55,9 @@ func main() {
 		}
 		a, matches, ok := matchLine(g, line)
 		if !ok {
+			if f := strings.Fields(line); len(f) >= 4 && f[2] == "SYS" {
+				continue // setup directive already applied by BeginSetup
+			}
 			fmt.Printf("\nGAP at event %d: %q\n", i, line)
 			fmt.Println("legal actions and their RMN lines:")
 			for _, la := range g.LegalActions() {
