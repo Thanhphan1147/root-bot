@@ -116,7 +116,7 @@ function renderPlayers(g) {
       extra = `<div class="row"><span>character</span><span>${ch ? ch.name : p.Character}</span></div>` +
         (ch ? `<div class="vbability"><b>${ch.ability}:</b> ${ch.text}</div>` : "") +
         `<div class="row"><span>at</span><span>${p.Pawn}</span></div>` +
-        `<div class="row"><span>items</span><span class="cards">${itemList(p)}</span></div>`;
+        vbItemsHTML(p);
       const rel = p.Relationships || {};
       const tags = Object.entries(rel).map(([k, v]) => `<span class="tag ${v === "hostile" ? "hostile" : ""}">${k}:${v}</span>`).join("");
       extra += `<div class="tags">${tags}</div>`;
@@ -168,16 +168,24 @@ function countRoosts(g, f) {
   return n;
 }
 
-function itemList(p) {
-  const out = [];
-  for (const [id, it] of Object.entries(p.Items || {})) {
-    let s = it.Type;
-    if (it.Zone === "track") s += "↑";
-    if (!it.FaceUp) s += "×";
-    if (it.Damaged) s += "✗";
-    out.push(s);
+// vbItemsHTML shows the Vagabond's items: tea/coin/bag counts on their tracks,
+// the satchel contents (with an "x" prefix for exhausted items) and the
+// satchel/damaged count against the 6 + 2-per-bag limit.
+function vbItemsHTML(p) {
+  const items = Object.values(p.Items || {});
+  const track = (t) => items.filter((it) => it.Type === t && it.Zone === "track" && it.FaceUp).length;
+  const satchel = items.filter((it) => it.Zone === "satchel");
+  const damaged = items.filter((it) => it.Damaged);
+  const used = satchel.length + damaged.length;
+  const limit = 6 + 2 * track("bag");
+  const sat = satchel.map((it) => (it.FaceUp ? "" : "x") + it.Type).join(" ") || "—";
+  let rows =
+    `<div class="row"><span>track</span><span class="cards">tea: ${track("tea")}/3  coin: ${track("coin")}/3  bag: ${track("bag")}/3</span></div>` +
+    `<div class="row"><span>satchel</span><span class="cards">${sat} (${used}/${limit})</span></div>`;
+  if (damaged.length) {
+    rows += `<div class="row"><span>damaged</span><span class="cards">${damaged.map((it) => it.Type).join(" ")}</span></div>`;
   }
-  return out.join(" ");
+  return rows;
 }
 
 function cardLabel(id) {
