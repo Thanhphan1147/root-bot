@@ -110,6 +110,7 @@ function renderPlayers(g) {
         vbItemsHTML(p);
       const rel = p.Relationships || {};
       const tags = Object.entries(rel).map(([k, v]) => `<span class="tag ${v === "hostile" ? "hostile" : ""}">${k}:${v}</span>`).join("");
+      extra += vbQuestsHTML(g, p);
       extra += `<div class="tags">${tags}</div>`;
     }
     div.innerHTML =
@@ -157,6 +158,31 @@ function countRoosts(g, f) {
     for (const b of (c.Buildings || [])) if (b.Owner === f && b.Type === "roost") n++;
   }
   return n;
+}
+
+// vbQuestsHTML lists the face-up quests (public info) with their required items
+// and reward: one VP per matching completed quest (including this one) or draw 2.
+function vbQuestsHTML(g, p) {
+  const defs = g.quests || {};
+  const avail = g.questAvail || [];
+  if (!avail.length) return "";
+  const done = {};
+  for (const qid of p.Quests || []) {
+    const q = defs[qid];
+    if (q) done[q.suit] = (done[q.suit] || 0) + 1;
+  }
+  let rows = "";
+  for (const qid of avail) {
+    const q = defs[qid];
+    if (!q) continue;
+    const vp = 1 + (done[q.suit] || 0);
+    rows +=
+      `<div class="quest"><span class="qsuit ${q.suit}">${q.suit}</span>` +
+      `<span class="qname">${q.name}</span>` +
+      `<span class="qreq">needs ${q.items.join(" + ")}</span>` +
+      `<span class="qrew">${vp} VP or draw 2</span></div>`;
+  }
+  return `<div class="qhead">active quests</div>${rows}`;
 }
 
 // vbItemsHTML shows the Vagabond's items: tea/coin/bag counts on their tracks,

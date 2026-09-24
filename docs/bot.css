@@ -172,3 +172,40 @@
   color: var(--ink);
 }
 .vbability b { color: var(--vb); }
+
+/* Vagabond active quests (public info). */
+.qhead {
+  margin-top: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.quest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+  padding: 0.22rem 0.3rem;
+  border-left: 3px solid var(--vb);
+  background: var(--paper);
+  font-size: 0.62rem;
+}
+.quest .qsuit {
+  width: 1rem;
+  height: 1rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 700;
+}
+.qsuit.F { background: var(--mc); }
+.qsuit.R { background: var(--vb); }
+.qsuit.M { background: #5b6472; }
+.quest .qname { font-weight: 700; color: var(--ink); }
+.quest .qreq { color: var(--ink-soft); }
+.quest .qrew { margin-left: auto; font-family: var(--mono); color: var(--ink-soft); }
