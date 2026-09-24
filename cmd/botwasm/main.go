@@ -59,8 +59,8 @@ func newGame(human string, seed, sims int, mode string) {
 		// Full-game testing runs a 1-ply greedy bot for every faction.
 		botSpecs[root.MC] = "greedy:material"
 		botSpecs[root.ED] = "greedy:eyrie"
-		botSpecs[root.WA] = "greedy:material"
-		botSpecs[root.VB] = "greedy:material"
+		botSpecs[root.WA] = "greedy:wa"
+		botSpecs[root.VB] = "greedy:vb"
 	} else {
 		order = []root.Faction{root.MC, root.ED}
 		botSpecs[root.MC] = "mcts:material"

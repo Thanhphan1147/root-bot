@@ -33,6 +33,26 @@ type Weights struct {
 	KeepBonus       float64 // Marquise keep still on the board
 	EDRisk          float64 // per decree card with no legal target
 	EDThin          float64 // per-unit risk for decree cards with few legal targets
+
+	// Woodland Alliance terms (absolute).
+	WASympathy  float64 // per sympathy token on the map
+	WABase      float64 // per base placed
+	WAOfficer   float64 // per officer
+	WASupporter float64 // per supporter card
+
+	// Vagabond terms (absolute).
+	VBItem     float64 // per usable (face-up, undamaged) item
+	VBBoot     float64 // extra per face-up boot
+	VBTea      float64 // extra per face-up tea
+	VBCoin     float64 // extra per face-up coin
+	VBBag      float64 // extra per face-up bag
+	VBSword    float64 // extra per face-up sword
+	VBTorch    float64 // extra per face-up torch
+	VBHammer   float64 // extra per face-up hammer
+	VBDamaged  float64 // per damaged item (usually negative)
+	VBAllied   float64 // per allied relationship
+	VBRelation float64 // per step of relationship progress (amiable 1 ... allied 3)
+	VBQuest    float64 // per completed quest
 }
 
 // Heuristic is a weighted evaluator.
@@ -101,9 +121,78 @@ func factionValue(g *root.Game, f root.Faction, w Weights) float64 {
 		}
 		v -= w.EDRisk * edDecreeRisk(g)
 		v -= w.EDThin * edDecreeThin(g)
+	case root.WA:
+		v += w.WASympathy * float64(sympathyCount(g))
+		v += w.WABase * float64(baseCount(g))
+		v += w.WAOfficer * float64(p.Officers)
+		v += w.WASupporter * float64(len(p.Supporters))
+	case root.VB:
+		for _, it := range p.Items {
+			if it == nil {
+				continue
+			}
+			if it.Damaged {
+				v -= w.VBDamaged
+				continue
+			}
+			if it.FaceUp {
+				v += w.VBItem
+			}
+			switch it.Type {
+			case "boot":
+				v += w.VBBoot
+			case "tea":
+				v += w.VBTea
+			case "coin":
+				v += w.VBCoin
+			case "bag":
+				v += w.VBBag
+			case "sword":
+				v += w.VBSword
+			case "torch":
+				v += w.VBTorch
+			case "hammer":
+				v += w.VBHammer
+			}
+		}
+		for _, rel := range p.Relationships {
+			switch rel {
+			case "amiable":
+				v += w.VBRelation
+			case "friendly":
+				v += w.VBRelation * 2
+			case "allied":
+				v += w.VBRelation*3 + w.VBAllied
+			}
+		}
+		v += w.VBQuest * float64(len(p.Quests))
 	}
 	return v
 }
+
+func sympathyCount(g *root.Game) int {
+	n := 0
+	for _, c := range g.Clearings {
+		if c.Sympathy == root.WA {
+			n++
+		}
+	}
+	return n
+}
+
+func baseCount(g *root.Game) int {
+	n := 0
+	for _, c := range g.Clearings {
+		for _, b := range c.Buildings {
+			if b.Owner == root.WA && isBase(b.Type) {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+func isBase(t string) bool { return t == "base-fox" || t == "base-rabbit" || t == "base-mouse" }
 
 // --- feature extraction ---
 
@@ -365,6 +454,27 @@ var Profiles = []Heuristic{
 		W: Weights{
 			VP: 1, Warrior: 0.2, Building: 0.7, Token: 0.3, Rule: 0.5, Card: 0.3,
 			MCWood: 0.25, MCBuild: 1.2, KeepBonus: 2.5,
+		},
+	},
+	{
+		// Woodland Alliance: sympathy tokens are the VP engine, bases enable
+		// the actions, officers fuel Evening operations, supporters pay for it.
+		// Tuned by 4-player self-play (generic 27.1 vp/22 wins -> ~30/24).
+		Label: "wa",
+		W: Weights{
+			VP: 1.1, Warrior: 0.15, Building: 0.4, Token: 0.4, Rule: 0.2,
+			WASympathy: 0.5, WABase: 0.5, WAOfficer: 0.35, WASupporter: 0.12,
+		},
+	},
+	{
+		// Vagabond: faction-specific proxies (items, relationships, quests) all
+		// scored worse than plain VP-maximisation at one ply, so this profile
+		// keeps the generic material weights (warriors/buildings/tokens/rule are
+		// zero for the Vagabond, leaving VP). The VB* weights exist for deeper
+		// search / future tuning.
+		Label: "vb",
+		W: Weights{
+			VP: 1, Warrior: 0.15, Building: 0.4, Token: 0.4, Rule: 0.2,
 		},
 	},
 }

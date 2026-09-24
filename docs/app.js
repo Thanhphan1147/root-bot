@@ -451,7 +451,7 @@ let thinking = false;
 // 1-ply greedy policy (handy for validating the notation).
 const SIMS = 300;
 const PROFILES_1V1 = { MC: "mcts:material", ED: "mcts:eyrie" };
-const PROFILES_4P = { MC: "greedy:material", ED: "greedy:eyrie", WA: "greedy:material", VB: "greedy:material" };
+const PROFILES_4P = { MC: "greedy:material", ED: "greedy:eyrie", WA: "greedy:wa", VB: "greedy:vb" };
 
 let chosenSide = "MC";
 let chosenMode = "1v1";
