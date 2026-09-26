@@ -54,7 +54,10 @@ func Parse(text string) (seed int64, order []root.Faction, first root.Faction, b
 		switch f[0] {
 		case "%Game":
 			if len(f) >= 2 {
-				s := strings.TrimPrefix(f[1], "demo-")
+				s := f[1]
+				if i := strings.LastIndex(s, "-"); i >= 0 {
+					s = s[i+1:]
+				}
 				if n, e := strconv.ParseInt(s, 10, 64); e == nil {
 					seed = n
 				}
