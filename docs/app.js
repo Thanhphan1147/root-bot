@@ -649,7 +649,19 @@ function doAction(id) {
   runHuman("apply", [id]);
 }
 
-// Custom RMN input: apply a player-entered line; show a short error if illegal.
+// Custom RMN input: type just "intent + operands" (e.g. "C:build
+// building=MC.b.saw at=C9"); the engine assumes the active player and infers the
+// sequence/round.phase from the log. We preview the full line it expands to.
+function rmnPreview() {
+  const el = document.getElementById("rmnpreview");
+  if (!el) return;
+  const text = document.getElementById("rmnin").value.trim();
+  if (!text || !game) { el.textContent = ""; return; }
+  const actor = activeFaction(game);
+  const seq = ((game.rmn && game.rmn.length) || 0) + 1;
+  el.textContent = "→ " + seq + " " + game.round + "." + game.phase + " " + actor + " " + text;
+}
+
 async function applyCustomRMN() {
   const inp = document.getElementById("rmnin");
   const errEl = document.getElementById("rmnerr");
@@ -662,12 +674,14 @@ async function applyCustomRMN() {
   if (obj.error) { errEl.textContent = obj.error; return; }
   errEl.textContent = "";
   inp.value = "";
+  rmnPreview();
   game = obj;
   viewer = game.you || viewer;
   render();
   await playBotTurn();
 }
 document.getElementById("rmngo").onclick = applyCustomRMN;
+document.getElementById("rmnin").addEventListener("input", rmnPreview);
 document.getElementById("rmnin").addEventListener("keydown", (e) => { if (e.key === "Enter") applyCustomRMN(); });
 
 // --- Bot turn playback (animated) ---
