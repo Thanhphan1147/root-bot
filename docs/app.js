@@ -649,6 +649,27 @@ function doAction(id) {
   runHuman("apply", [id]);
 }
 
+// Custom RMN input: apply a player-entered line; show a short error if illegal.
+async function applyCustomRMN() {
+  const inp = document.getElementById("rmnin");
+  const errEl = document.getElementById("rmnerr");
+  const text = inp.value.trim();
+  if (!text || thinking || !window.RootBot) return;
+  thinking = true;
+  let obj;
+  try { obj = JSON.parse(RootBot.tryrmn(text)); } catch (e) { obj = { error: String(e) }; }
+  thinking = false;
+  if (obj.error) { errEl.textContent = obj.error; return; }
+  errEl.textContent = "";
+  inp.value = "";
+  game = obj;
+  viewer = game.you || viewer;
+  render();
+  await playBotTurn();
+}
+document.getElementById("rmngo").onclick = applyCustomRMN;
+document.getElementById("rmnin").addEventListener("keydown", (e) => { if (e.key === "Enter") applyCustomRMN(); });
+
 // --- Bot turn playback (animated) ---
 const FACTION_NAME = { MC: "Marquise", ED: "Eyrie" };
 

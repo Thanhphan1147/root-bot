@@ -242,3 +242,8 @@
 .howto-sec { margin: 0 0 0.7rem; }
 .howto-sec h3 { margin: 0 0 0.2rem; font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
 .howto-sec p { margin: 0; font-size: 0.68rem; line-height: 1.45; color: var(--ink); }
+
+/* Custom RMN input in the Actions panel. */
+.rmninput { display: flex; gap: 0.4rem; padding: 0.4rem 0.55rem 0; }
+.rmninput input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 0.66rem; padding: 0.35rem 0.45rem; border: 1.5px solid var(--line-strong); border-radius: var(--radius); background: var(--paper); color: var(--ink); }
+.rmnerr { min-height: 1rem; padding: 0.25rem 0.55rem 0.4rem; font-family: var(--mono); font-size: 0.64rem; color: var(--crimson); }
