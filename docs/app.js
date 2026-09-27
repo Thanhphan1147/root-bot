@@ -113,8 +113,13 @@ function renderPlayers(g) {
       extra += vbQuestsHTML(g, p);
       extra += `<div class="tags">${tags}</div>`;
     }
+    // In a coalition, the Vagabond shares its partner's victory condition and no
+    // longer scores, so show the coalition instead of a VP total.
+    const coal = f === "VB" && p.Coalition;
+    const joinedByVB = (g.players && g.players.VB && g.players.VB.Coalition === f);
     div.innerHTML =
-      `<div class="phead"><span class="f">${f}${game.you === f ? " · you" : ""}</span><span class="vp">${p.VP} VP</span></div>` +
+      `<div class="phead"><span class="f">${f}${game.you === f ? " · you" : ""}</span>` +
+      `<span class="vp">${coal ? "coalition · " + p.Coalition : (joinedByVB ? "coalition · VB" : p.VP + " VP")}</span></div>` +
       `<div class="pbody">${extra}` +
       `<div class="row"><span>crafted</span><span>${(p.Crafted || []).map(cardLabel).join(" ") || "—"}</span></div>` +
       `<div class="row"><span>crafted items</span><span>${craftedItems(p)}</span></div>` +
@@ -218,6 +223,28 @@ function craftedItems(p) {
   return items.length ? items.join(" ") : "—";
 }
 
+// Public dominance zone (played + spent cards everyone may swap during Birdsong).
+function renderDominance(g) {
+  let el = document.getElementById("dominance");
+  if (!el) {
+    const wrap = document.querySelector(".boardwrap");
+    if (!wrap) return;
+    el = document.createElement("div");
+    el.id = "dominance";
+    el.className = "dominance";
+    wrap.append(el);
+  }
+  const cards = g.dominance || [];
+  if (!cards.length) { el.hidden = true; el.innerHTML = ""; return; }
+  const active = g.dominanceActive || {};
+  el.hidden = false;
+  el.innerHTML = '<span class="dlabel">Dominance</span>' + cards.map((id) => {
+    const info = (g.cards && g.cards[id]) || { name: id, suit: "B" };
+    const by = active[id] ? ` <span class="downer">${active[id]}</span>` : "";
+    return `<span class="dcard suit-${info.suit}">${info.name}${by}</span>`;
+  }).join("");
+}
+
 function renderBoard(g) {
   const el = document.getElementById("board");
   el.innerHTML = "";
@@ -306,6 +333,8 @@ function renderBoard(g) {
     pd.title = "Vagabond in " + vbPawn;
     el.append(pd);
   }
+
+  renderDominance(g);
 
   document.getElementById("boardfoot").textContent =
     "roads: " + EDGES.map(([a, b]) => a + "–" + b).join("  ") +
