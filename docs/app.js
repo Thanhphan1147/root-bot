@@ -223,7 +223,8 @@ function craftedItems(p) {
   return items.length ? items.join(" ") : "—";
 }
 
-// Public dominance zone (played + spent cards everyone may swap during Birdsong).
+// Public dominance info: activated cards (play area, never takeable) and
+// available cards (near the map, takeable during Daylight).
 function renderDominance(g) {
   let el = document.getElementById("dominance");
   if (!el) {
@@ -234,15 +235,21 @@ function renderDominance(g) {
     el.className = "dominance";
     wrap.append(el);
   }
-  const cards = g.dominance || [];
-  if (!cards.length) { el.hidden = true; el.innerHTML = ""; return; }
+  const avail = g.dominance || [];
   const active = g.dominanceActive || {};
+  const activeIds = Object.keys(active).sort();
+  if (!avail.length && !activeIds.length) { el.hidden = true; el.innerHTML = ""; return; }
   el.hidden = false;
-  el.innerHTML = '<span class="dlabel">Dominance</span>' + cards.map((id) => {
+  let html = '<span class="dlabel">Dominance</span>';
+  for (const id of activeIds) {
     const info = (g.cards && g.cards[id]) || { name: id, suit: "B" };
-    const by = active[id] ? ` <span class="downer">${active[id]}</span>` : "";
-    return `<span class="dcard suit-${info.suit}">${info.name}${by}</span>`;
-  }).join("");
+    html += `<span class="dcard suit-${info.suit} active" title="activated by ${active[id]}">${info.name} <span class="downer">${active[id]}</span></span>`;
+  }
+  for (const id of avail) {
+    const info = (g.cards && g.cards[id]) || { name: id, suit: "B" };
+    html += `<span class="dcard suit-${info.suit}" title="available to take">${info.name}</span>`;
+  }
+  el.innerHTML = html;
 }
 
 function renderBoard(g) {
